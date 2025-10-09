@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -42,6 +43,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.groupproject.ui.theme.GroupProjectTheme
 import kotlin.io.encoding.Base64
+import androidx.compose.ui.platform.LocalContext
+import com.example.backend.backend
+import com.example.backend.BErr
+
+
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -69,34 +75,58 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun HomeScreen( modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize().background(Color.White),
+    // for backend testing (can remove if you want)
+    var testHttp: String by remember { mutableStateOf("")} // sample variable to show output to UI
+    val ctx = LocalContext.current // need to pass "context" as argument when calling request
+
+    Box(modifier
+        .fillMaxSize()
+        .background(Color.White),
         contentAlignment = Alignment.Center
     ){
         Row( modifier = Modifier
             .fillMaxSize()
-            .padding(top = 50.dp, bottom = 100.dp,
-                        start = 50.dp, end = 50.dp),
+            .padding(
+                top = 50.dp, bottom = 100.dp,
+                start = 50.dp, end = 50.dp
+            ),
             ) {
             Text(text ="Home Screen",
                 fontSize = 36.sp,
                 color = Color.Black)
         }
         Row {
-            Text(text ="This is sample Text",
+            Text(text ="This is sample Text: $testHttp",
                 fontSize = 36.sp,
                 color = Color.Black)
+
+            // For backend testing, can remove if want
+            Button(onClick={
+                // request hello message from backend given (LocalContext.current, and name); (see backend.kt for documentation)
+                backend.request_hello(ctx, "Conor") { resp -> // anonymous function is called when backend responds
+                    when(resp.err){ // switch statement
+                        BErr.Ok -> testHttp = resp.message
+                        BErr.Not_Signed_In -> testHttp = "No Connection / Not Signed In"
+                        BErr.Exception -> testHttp = resp.message
+                    }
+            } }){ Text("HTTP")}
+
         }
     }
 }
 @Composable
 fun QuestionScreen( modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize().background(Color.White),
+    Box(modifier
+        .fillMaxSize()
+        .background(Color.White),
         contentAlignment = Alignment.Center
     ){
         Row( modifier = Modifier
             .fillMaxSize()
-            .padding(top = 50.dp, bottom = 100.dp,
-                start = 50.dp, end = 50.dp),
+            .padding(
+                top = 50.dp, bottom = 100.dp,
+                start = 50.dp, end = 50.dp
+            ),
         ) {
             Text(
                 text = "Question Screen",
@@ -112,7 +142,9 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 }
 @Composable
 fun NotificationScreen( modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize().background(Color.White),
+    Box(modifier
+        .fillMaxSize()
+        .background(Color.White),
         contentAlignment = Alignment.Center
     ) {
         Row(
