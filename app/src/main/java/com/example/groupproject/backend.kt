@@ -2,7 +2,6 @@ package com.example.backend
 
 import android.content.Context
 import android.util.Log
-import com.android.volley.Request
 import com.android.volley.Response
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
@@ -41,7 +40,10 @@ import java.net.ConnectException
 // Lifestyle questionare
 // cathal is using this dataset for LLM fine-tuning https://www.kaggle.com/api/v1/datasets/download/timothyadeyemi/dementia-patient-health-dataset
 // features: Diabetic:Bool, AlcoholLevel:Float, HeartRate:int, BloodOxygenLevel: float, BodyTemperature: float, Weight:float, MRI_Delay: float, Presecription: String?, DosageMg: int? , Age: int, EducationLevel: [Primary,Secondary,No,Deploma/Degree], DominantHand: [left,right], Gender: [male,female], FamilyHistory:bool, SmokingStatus: [Current,Former,Never], APOE_e4:[positive,Negative], PhysicalActivity:[sedentary,moderate,mild], DepressionStatus:bool, MedicationHistory:bool,NutritionDiet:[LowCarb,Mediterranean,Balanced],SleepQuality:[Poor,Good],ChronicHealthConditions:[Diabetes,HearthDisease,Hypertension,None]
-data class Prescription ( val name: String, val DosageMg: Int )
+
+
+
+data class Prescription (val name: String, val DosageMg: Int )
 enum class EducationLevel { No,Primary,Secondary,DeplomaDegree }
 enum class DomHand { Left,Right }
 enum class Gender { Male, Female }
@@ -63,7 +65,7 @@ data class LifestyleData ( // not sure if all are relevant so we might decide to
     val Age: Int,
     val EducationLevel: EducationLevel,
     val DominantHand: DomHand,
-    val gender: Gender,
+    val Gender: Gender,
     val FamilyHistory: Boolean,
     val SmokingStatus: SmokingStatus,
     val APOEE4: Boolean,
@@ -118,7 +120,8 @@ object backend {
         val jsonBody = JSONObject("{\"name\":\"$x\"}")
 
 	// handle response
-        val req = object : JsonObjectRequest(Request.Method.POST, url, jsonBody,
+        val req = object : JsonObjectRequest(
+            Method.POST, url, jsonBody,
             Response.Listener { response ->
                 // response.has("message") // t*do validate return json
                 val resp = Resp_Hello(BErr.Ok,response.getString("message"))
@@ -146,6 +149,7 @@ object backend {
     } // request_hello end
 
 
+
     // Send Healtcare
     fun send_lifestyle(ctx: Context, data: LifestyleData, cb: (BErr)->Unit  ){
 	// if localmode
@@ -157,38 +161,55 @@ object backend {
 	    // state request
         val url = "$prefix/v1/send_lifestyle"
         val queue = Volley.newRequestQueue(ctx)
+
+        // toString stuff
+		fun trueFalse(b:Boolean):String { return if (b) "true" else "false" }
+		val PrescriptionStr = if (data.Prescription != null) data.Prescription.name else "None"
+		val DosageStr = if (data.Prescription != null) data.Prescription.DosageMg else "0"
+		fun eduLevelStr(x:EducationLevel):String { return when(x) {
+            EducationLevel.No -> "No School"
+            EducationLevel.Primary -> "Primary School"
+            EducationLevel.Secondary -> "Secondary School"
+            EducationLevel.DeplomaDegree -> "Diploma/Degree" } }
+        fun DomHandStr(x: DomHand):String { return when(x) {
+            DomHand.Left -> "Left"
+            DomHand.Right -> "Right" } }
+        fun GenderStr(x:Gender):String { return when(x){
+            Gender.Male -> "Male"
+            Gender.Female -> "Female" } }
+        fun SmokingStr(x: SmokingStatus):String { return when(x){
+            SmokingStatus.Current -> "Current Smoker"
+            SmokingStatus.Former -> "Former Smoker"
+            SmokingStatus.Never -> "Never Smoked" } }
+        fun DietStr(x: NutritionDiet):String { return when(x){
+            NutritionDiet.LowCarb -> "Low-Carb"
+            NutritionDiet.Mediterranean -> "Mediterranean"
+            NutritionDiet.Balanced -> "Balanced Diet" }}
+        fun SleepStr(x: SleepQuality):String { return when(x){
+            SleepQuality.Poor -> "Poor"
+            SleepQuality.Good -> "Good" } }
+        fun ChronicStr(x: ChronicHealthConditions):String{ return when(x){
+            ChronicHealthConditions.Diabetes -> "Diabetes"
+            ChronicHealthConditions.HearthDisease -> "Heart Disease"
+            ChronicHealthConditions.Hypertension -> "Hypertension"
+            ChronicHealthConditions.None -> "None" }}
+        fun ActivityStr(x: PhysicalActivity):String{ return when(x){
+            PhysicalActivity.Sedentary -> "Sedentary"
+            PhysicalActivity.Moderate -> "Moderate Activity"
+            PhysicalActivity.Mild -> "Mild Activity" }}
+
+
+		val str = "Diabetic:${trueFalse(data.Diabetic)},AlcoholLevel:${data.AlcoholLevel}, HeartRate:${data.HeartRate}, BloodOxygenLevel:${data.BloodOxygenLevel}, BodyTemperature:${data.BodyTemperature}, Weight${data.Weight}, MRI_Delay:${data.MRI_Delay}, Prescription:${PrescriptionStr}, DosageMg:${DosageStr}, Age:${data.Age}, EducationLevel${eduLevelStr(data.EducationLevel)}, DominantHand:${DomHandStr(data.DominantHand)}, Gender:${GenderStr(data.Gender)}, FamilyHistory:${trueFalse(data.FamilyHistory)}, SmokingStatus:${SmokingStr(data.SmokingStatus)}, APOE_e19:${trueFalse(data.APOEE4)}, PhysicalActivity:${ActivityStr(data.PhysicalActivity)}, DepressionStatus:${trueFalse(data.DepressionStatus)}, MedicationHistory:${trueFalse(data.MedicationHistory)}, NutrientDiet:${DietStr(data.NutrientDiet)}, SleepQuality:${SleepStr(data.SleepQuality)}, ChronicHealthConditions${ChronicStr(data.ChronicHealthConditions)}"
+
+        log(str)
 	
-    	// t*do generate json body, ensure consistent field/value names, lowercase boolean, cammelCase enum
-        // val DiabeticStr = ...
-        // val AlcoholLevelStr = ...
-        // val HeartRateStr = ...
-        // val BloodOxygenLevelStr = ...
-        // val BodyTemperatureStr = ...
-        // val WeightStr = ...
-        // val MRI_DelayStr = ...
-        // val PrescriptionStr = ...
-        // val AgeStr = ...
-        // val EducationLevelStr = ...
-        // val DominantHandStr = ...
-        // val genderStr = ...
-        // val FamilyHistoryStr = ...
-        // val SmokingStatusStr = ...
-        // val APOEE4Str = ...
-        // val PhysicalActivityStr = ...
-        // val DepressionStatusStr = ...
-        // val MedicationHistoryStr = ...
-        // val NutrientDietStr = ...
-        // val SleepQualityStr = ...
-        // val ChronicHealthConditionsStr = ...
-	
-    	// val str = "\"Diabetic\":\"$DiabeticStr\", \"AlcoholLevel\":\"$AlcoholLevelStr\", \"HeartRate\":\"$HeartRateStr\", \"BloodOxygenLevel\":\"$BloodOxygenLevelStr\", \"BodyTemperature\":\"$BodyTemperatureStr\", \"Weight\":\"$WeightStr\", \"MRI_Delay\":\"$MRI_DelayStr\", \"Prescription\":\"$PrescriptionStr\", \"Age\":\"$AgeStr\", \"EducationLevel\":\"$EducationLevelStr\", \"DominantHand\":\"$DominantHandStr\", \"gender\":\"$genderStr\", \"FamilyHistory\":\"$FamilyHistoryStr\", \"SmokingStatus\":\"$SmokingStatusStr\", \"APOEE4\":\"$APOEE4Str\", \"PhysicalActivity\":\"$PhysicalActivityStr\", \"DepressionStatus\":\"$DepressionStatusStr\", \"MedicationHistory\":\"$MedicationHistoryStr\", \"NutrientDiet\":\"$NutrientDietStr\", \"SleepQuality\":\"$SleepQualityStr\", \"ChronicHealthConditions\":\"$ChronicHealthConditionsStr\""
-        // val jsonBody = JSONObject("{$str}")
-        val jsonBody = JSONObject("{\"name\":\"$data.Age\"}")
+        val jsonBody = JSONObject("{\"message\":\"$str\"}")
     	// note will need to include user ID when login/sessions are implemented (stored in this module, not somehting passed into function), will need to check for login/credentials before sending and early return BErr.Not_Signed_In
 
 	    // handle response
-        val req = object : JsonObjectRequest(Request.Method.POST, url, jsonBody,
-            Response.Listener { response -> cb(BErr.Ok) },
+        val req = object : JsonObjectRequest(
+            Method.POST, url, jsonBody,
+            Response.Listener { response -> cb(BErr.Ok) }, // response has "success" boolean
 
             Response.ErrorListener { error ->
 		        var resp = BErr.Exception
@@ -209,6 +230,30 @@ object backend {
         ) {}
         queue.add(req)
     } // send_lifestyle end
+
+    val ExampleLifestyle: LifestyleData = LifestyleData(
+        Diabetic = true,
+        AlcoholLevel = .084f,
+        HeartRate = 98,
+        BloodOxygenLevel = 96.23f,
+        BodyTemperature = 36.224f,
+        Weight = 57.56f,
+        MRI_Delay = 36.42f,
+        Prescription = null,
+        Age = 60,
+        EducationLevel = EducationLevel.Primary,
+        DominantHand = DomHand.Left,
+        Gender = Gender.Female,
+        FamilyHistory = false,
+        SmokingStatus = SmokingStatus.Current,
+        APOEE4 = false,
+        PhysicalActivity = PhysicalActivity.Sedentary,
+        DepressionStatus = false,
+        MedicationHistory = false,
+        NutrientDiet = NutritionDiet.LowCarb,
+        SleepQuality = SleepQuality.Poor,
+        ChronicHealthConditions = ChronicHealthConditions.Diabetes
+    )
 
 
 
