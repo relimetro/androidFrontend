@@ -91,6 +91,7 @@ fun HomeScreen( modifier: Modifier = Modifier) {
     // for backend testing (can remove if you want)
     var testHttp: String by remember { mutableStateOf("")} // sample variable to show output to UI
     val ctx = LocalContext.current // need to pass "context" as argument when calling request
+	var testIP by rememberSaveable { mutableStateOf(value="localhost")}
 
     Box(modifier
         .fillMaxSize()
@@ -123,6 +124,8 @@ fun HomeScreen( modifier: Modifier = Modifier) {
                         BErr.Exception -> testHttp = resp.message
                     }
             } }){ Text("HTTP")}
+			TextField(value = testIP, onValueChange = { testIP = it}, label = {Text("Ip address")})
+            Button(onClick={ backend.setAddresss(testIP) } ){ Text("change ip")}
 
         }
     }
