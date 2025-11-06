@@ -29,6 +29,7 @@ import java.net.ConnectException
 // NOTE: not implemented in backend yet
 
 
+// TODO (that cathal needs to do) login seperate to get_risk score
 
 
 
@@ -98,7 +99,8 @@ data class Resp_Hello(
 
 // Main Thingie
 object backend {
-    private var ipa = "000.00.00.00"
+    // private var ipa = "000.00.00.00"
+    private var ipa = "dementica.danigoes.online"
     private var prefix = "http://${ipa}:80"
     fun setAddresss(ipa:String) { this.ipa = ipa; prefix = "http://${ipa}:80" }
 
@@ -147,6 +149,92 @@ object backend {
         ) {}
         queue.add(req)
     } // request_hello end
+
+
+
+
+
+
+    // RIsk Request
+    fun request_risk(ctx: Context, name:String, pass:String, cb: (Resp_Hello)->Unit  ){
+	// if localmode
+        if (localMode) {
+            log("Request_risk LOCAL MODE")
+            cb(Resp_Hello(BErr.Ok,"Lc"))
+            return }
+
+	// state request
+        val url = "$prefix/v1/login"
+        val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
+        val jsonBody = JSONObject("{\"UserName\":\"$name\",\"PlaintextPassword\":\"$pass\"}")
+
+	// handle response
+        val req = object : JsonObjectRequest(
+            Method.POST, url, jsonBody,
+            Response.Listener { response ->
+                val resp = Resp_Hello(BErr.Ok,response.getString("Temp"))
+                log("Risk-Login Success ${resp.message}")
+				// TODO START
+
+				val url = "$prefix/v1/get_risk"
+				val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
+				val jsonBody = JSONObject("{\"Temp\":\"${resp.message}\"}")
+
+				val req = object : JsonObjectRequest(
+					Method.POST, url, jsonBody,
+					Response.Listener { response ->
+						val resp2 = Resp_Hello(BErr.Ok,response.getString("Score"))
+						log("Risk-Risk Success ${resp2.message}")
+						cb(resp2) },
+
+						Response.ErrorListener { error ->
+							var resp = Resp_Hello(BErr.Exception,error.toString())
+							log("Request_Hello Error")
+
+							// check if network issue
+							if (error.cause != null){
+								try { throw (error.cause as Throwable) }
+								catch (e: ConnectException){
+									resp = Resp_Hello(BErr.Not_Signed_In,error.toString())
+									log("    NoConnectionError")
+								}
+								catch(e: Exception) { log("    Other Exception")}
+							}
+							log( "    localizedMessage: ${error.localizedMessage}")
+							log( "    toString ${error.toString()}")
+							cb(resp) },
+						) {}
+
+
+
+
+				// TOOD END
+
+                queue.add(req)
+
+                // cb(resp) },
+                },
+
+            Response.ErrorListener { error ->
+                var resp = Resp_Hello(BErr.Exception,error.toString())
+                log("Request_Hello Error")
+
+                // check if network issue
+                if (error.cause != null){
+                    try { throw (error.cause as Throwable) }
+                    catch (e: ConnectException){
+                        resp = Resp_Hello(BErr.Not_Signed_In,error.toString())
+                        log("    NoConnectionError")
+                    }
+                    catch(e: Exception) { log("    Other Exception")}
+                }
+                log( "    localizedMessage: ${error.localizedMessage}")
+                log( "    toString ${error.toString()}")
+                cb(resp) },
+        ) {}
+        queue.add(req)
+    } // request_risk end
+
 
 
 

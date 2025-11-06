@@ -125,9 +125,20 @@ fun HomeScreen( modifier: Modifier = Modifier) {
                 // For backend testing, can remove if want
                 Button(onClick = {
                     // request hello message from backend given (LocalContext.current, and name); (see backend.kt for documentation)
-                    backend.request_hello(
+                    // backend.request_hello(
+                    //     ctx,
+                    //     "Conor"
+                    // ) { resp -> // anonymous function is called when backend responds
+                    //     when (resp.err) { // switch statement
+                    //         BErr.Ok -> testHttp = resp.message
+                    //         BErr.Not_Signed_In -> testHttp = "No Connection / Not Signed In"
+                    //         BErr.Exception -> testHttp = resp.message
+                    //     }
+                    // }
+					backend.request_risk(
                         ctx,
-                        "Conor"
+                        "name",
+						"pass"
                     ) { resp -> // anonymous function is called when backend responds
                         when (resp.err) { // switch statement
                             BErr.Ok -> testHttp = resp.message
@@ -135,6 +146,7 @@ fun HomeScreen( modifier: Modifier = Modifier) {
                             BErr.Exception -> testHttp = resp.message
                         }
                     }
+
                 }) { Text("HTTP") }
             }
             Row(Modifier.fillMaxWidth().height(100.dp)) {
