@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -91,39 +92,71 @@ fun HomeScreen( modifier: Modifier = Modifier) {
     // for backend testing (can remove if you want)
     var testHttp: String by remember { mutableStateOf("")} // sample variable to show output to UI
     val ctx = LocalContext.current // need to pass "context" as argument when calling request
+    var testIP by rememberSaveable { mutableStateOf(value="localhost")}
 
     Box(modifier
         .fillMaxSize()
         .background(Color.White),
         contentAlignment = Alignment.Center
-    ){
-        Row( modifier = Modifier
-            .fillMaxSize()
-            .padding(
-                top = 50.dp, bottom = 100.dp,
-                start = 50.dp, end = 50.dp
-            ),
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp)
+                    .padding(
+                        top = 50.dp, bottom = 100.dp,
+                        start = 50.dp, end = 50.dp
+                    ),
             ) {
-            Text(text ="Home Screen",
-                fontSize = 36.sp,
-                color = Color.Black)
-        }
-        Row {
-            Text(text ="This is sample Text: $testHttp",
-                fontSize = 36.sp,
-                color = Color.Black)
+                Text(
+                    text = "Home Screen",
+                    fontSize = 36.sp,
+                    color = Color.Black
+                )
+            }
+            Row(Modifier.fillMaxWidth().height(100.dp)) {
+                Text(
+                    text = "This is sample Text: $testHttp",
+                    fontSize = 36.sp,
+                    color = Color.Black
+                )
 
-            // For backend testing, can remove if want
-            Button(onClick={
-                // request hello message from backend given (LocalContext.current, and name); (see backend.kt for documentation)
-                backend.request_hello(ctx, "Conor") { resp -> // anonymous function is called when backend responds
-                    when(resp.err){ // switch statement
-                        BErr.Ok -> testHttp = resp.message
-                        BErr.Not_Signed_In -> testHttp = "No Connection / Not Signed In"
-                        BErr.Exception -> testHttp = resp.message
+                // For backend testing, can remove if want
+                Button(onClick = {
+                    // request hello message from backend given (LocalContext.current, and name); (see backend.kt for documentation)
+                    // backend.request_hello(
+                    //     ctx,
+                    //     "Conor"
+                    // ) { resp -> // anonymous function is called when backend responds
+                    //     when (resp.err) { // switch statement
+                    //         BErr.Ok -> testHttp = resp.message
+                    //         BErr.Not_Signed_In -> testHttp = "No Connection / Not Signed In"
+                    //         BErr.Exception -> testHttp = resp.message
+                    //     }
+                    // }
+					backend.request_risk(
+                        ctx,
+                        "name",
+						"pass"
+                    ) { resp -> // anonymous function is called when backend responds
+                        when (resp.err) { // switch statement
+                            BErr.Ok -> testHttp = resp.message
+                            BErr.Not_Signed_In -> testHttp = "No Connection / Not Signed In"
+                            BErr.Exception -> testHttp = resp.message
+                        }
                     }
-            } }){ Text("HTTP")}
 
+                }) { Text("HTTP") }
+            }
+            Row(Modifier.fillMaxWidth().height(100.dp)) {
+                TextField(
+                    value = testIP,
+                    onValueChange = { testIP = it },
+                    label = { Text("Ip address") })
+                Button(onClick = { backend.setAddresss(testIP) }) { Text("change ip") }
+
+            }
         }
     }
 }
