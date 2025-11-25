@@ -345,7 +345,9 @@ object backend {
 
             log(str)
 
-            val jsonBody = JSONObject("{\"message\":\"$str\"}")
+            // val jsonBody = JSONObject("{\"UserID\":\"$str\"}")
+             val jsonBody = JSONObject("{\"UserID\":\"Conor\",\"data\":\"$str\"}")
+
             // note will need to include user ID when login/sessions are implemented (stored in this module, not somehting passed into function), will need to check for login/credentials before sending and early return BErr.Not_Signed_In
 
             // handle response
