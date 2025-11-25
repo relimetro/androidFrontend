@@ -1,16 +1,16 @@
 package com.example.groupproject
 
 import android.os.Bundle
-import android.widget.RadioButton
+import android.util.Log
+import android.util.Patterns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.snapping.SnapPosition
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,20 +18,31 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,28 +54,36 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ModifierLocalBeyondBoundsLayout
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.groupproject.ui.theme.GroupProjectTheme
-import kotlin.io.encoding.Base64
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.ViewModel
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.navigation.NavController
 import com.example.backend.backend
 import com.example.backend.BErr
+import com.example.backend.ChronicHealthConditions
+import com.example.backend.DomHand
+import com.example.backend.EducationLevel
 import com.example.backend.Gender
+import com.example.backend.LifestyleData
 import com.example.backend.NutritionDiet
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import com.example.backend.PhysicalActivity
+import com.example.backend.Prescription
+import com.example.backend.SleepQuality
+import com.example.backend.SmokingStatus
 
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
     object Settings : Screen("settings")
+    object QuestionnaireSelect: Screen("questionnaireSelect")
+    object QuestionnaireC : Screen("questionnaireC")
     object Notification : Screen("notifications")
 }
 
@@ -80,6 +99,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             GroupProjectTheme {
+                //LoginScreen()
+                //SignUpScreen()
                 Mainfunction()
             }
         }
@@ -90,9 +111,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun HomeScreen( modifier: Modifier = Modifier) {
     // for backend testing (can remove if you want)
-    var testHttp: String by remember { mutableStateOf("")} // sample variable to show output to UI
-    val ctx = LocalContext.current // need to pass "context" as argument when calling request
-    var testIP by rememberSaveable { mutableStateOf(value="localhost")}
+
 
     Box(modifier
         .fillMaxSize()
@@ -114,82 +133,70 @@ fun HomeScreen( modifier: Modifier = Modifier) {
                     fontSize = 36.sp,
                     color = Color.Black
                 )
-            }
-            Row(Modifier.fillMaxWidth().height(100.dp)) {
-                Text(
-                    text = "This is sample Text: $testHttp",
-                    fontSize = 36.sp,
-                    color = Color.Black
-                )
 
-                // For backend testing, can remove if want
-                Button(onClick = {
-                    // request hello message from backend given (LocalContext.current, and name); (see backend.kt for documentation)
-                    // backend.request_hello(
-                    //     ctx,
-                    //     "Conor"
-                    // ) { resp -> // anonymous function is called when backend responds
-                    //     when (resp.err) { // switch statement
-                    //         BErr.Ok -> testHttp = resp.message
-                    //         BErr.Not_Signed_In -> testHttp = "No Connection / Not Signed In"
-                    //         BErr.Exception -> testHttp = resp.message
-                    //     }
-                    // }
-					backend.request_risk(
-                        ctx,
-                        "name",
-						"pass"
-                    ) { resp -> // anonymous function is called when backend responds
-                        when (resp.err) { // switch statement
-                            BErr.Ok -> testHttp = resp.message
-                            BErr.Not_Signed_In -> testHttp = "No Connection / Not Signed In"
-                            BErr.Exception -> testHttp = resp.message
-                        }
-                    }
-
-                }) { Text("HTTP") }
-            }
-            Row(Modifier.fillMaxWidth().height(100.dp)) {
-                TextField(
-                    value = testIP,
-                    onValueChange = { testIP = it },
-                    label = { Text("Ip address") })
-                Button(onClick = { backend.setAddresss(testIP) }) { Text("change ip") }
-
+//                Row(Modifier
+//                    .fillMaxWidth()
+//                    .height(100.dp)) {
+//                    TextField(
+//                        value = testIP,
+//                        onValueChange = { testIP = it },
+//                        label = { Text("Ip address") })
+//                    Button(onClick = { backend.setAddresss(testIP) }) { Text("change ip") }
+//
+//                }
             }
         }
     }
 }
+
+@Composable
+fun QuestionnaireSelect(navController: NavController){
+    val modifier = Modifier
+    Column(modifier.fillMaxSize()) {
+        Button(onClick = {navController.navigate(Screen.Settings.route)}) {
+            Text("Lifestyle Questionnaire")
+        }
+        Spacer(modifier.height(16.dp))
+        Button(onClick = {navController.navigate(Screen.QuestionnaireC.route)}) {
+            Text("Cognitive Questionnaire")
+        }
+
+    }
+}
 @Composable
 fun QuestionScreen( modifier: Modifier = Modifier) {
+    var testHttp: String by remember { mutableStateOf("")} // sample variable to show output to UI
+    val ctx = LocalContext.current // need to pass "context" as argument when calling request
+    var testIP by rememberSaveable { mutableStateOf(value="localhost")}
     var name = rememberSaveable { mutableStateOf("") }
-    val Diabetic = rememberSaveable { mutableStateOf("Yes") }
+    val Diabetic = rememberSaveable { mutableStateOf("") }
     var alcohol = rememberSaveable { mutableStateOf("") }
     var heartRate = rememberSaveable { mutableStateOf("") }
     var BloodOxygenLevel = rememberSaveable { mutableStateOf("")}
     var BodyTemperature = rememberSaveable { mutableStateOf("") }
     var Weight = rememberSaveable { mutableStateOf("") }
     var MRI_Delay = rememberSaveable { mutableStateOf("") }
-    var Prescription = rememberSaveable { mutableStateOf("") }
+    var prescription_name = rememberSaveable { mutableStateOf("") }
+    var prescription_dosage = rememberSaveable { mutableStateOf("") }
     var Age = rememberSaveable { mutableStateOf("") }
-    var EducationLevel = rememberSaveable { mutableStateOf("") }
+    var educationLevel by rememberSaveable { mutableStateOf(EducationLevel.No) }
     var DominantHand = rememberSaveable { mutableStateOf("Right") }
-    var Gender = rememberSaveable { mutableStateOf("Male") }
+    var gender = rememberSaveable { mutableStateOf("Male") }
     var FamilyHistory = rememberSaveable { mutableStateOf("Yes") }
+    var smokingStatus by rememberSaveable { mutableStateOf(SmokingStatus.Never) }
     var APOEE4 = rememberSaveable { mutableStateOf("Yes") }
-    var PhysicalActivity = rememberSaveable { mutableStateOf("Yes") }
+    var physicalActivity by rememberSaveable { mutableStateOf(PhysicalActivity.Mild) }
     var DepressionStatus = rememberSaveable { mutableStateOf("Yes") }
     var MedicationHistory = rememberSaveable { mutableStateOf("Yes") }
-    var NutrientDiet = rememberSaveable { mutableStateOf("Yes") }
-    var SleepQuality  = rememberSaveable { mutableStateOf("Good") }
-    var ChronicHealthConditions = rememberSaveable { mutableStateOf("Yes") }
+    var nutrientDiet by rememberSaveable { mutableStateOf(NutritionDiet.Balanced) }
+    var sleepQuality  by rememberSaveable { mutableStateOf(SleepQuality.Poor) }
+    var chronicHealthConditions by rememberSaveable { mutableStateOf(ChronicHealthConditions.None) }
 
 
     Box(modifier
         .fillMaxSize()
         .background(Color.White),
-        contentAlignment = Alignment.Center
-    ) {
+        contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -198,9 +205,9 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
                     top = 50.dp, bottom = 100.dp,
                     start = 50.dp, end = 50.dp
                 ),
-        ) {
+            ) {
             Text(
-                text = "Question Screen",
+                text = "Lifestyle Questionnaire",
                 fontSize = 36.sp,
                 color = Color.Black
             )
@@ -286,9 +293,15 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.height(30.dp))
 
             TextField(
-                value = Prescription.value,
-                onValueChange = { Prescription.value = it },
-                label = { Text("Enter your prescription") },
+                value = prescription_name.value,
+                onValueChange = { prescription_name.value = it },
+                label = { Text("Enter your prescription name") },
+
+                )
+            TextField(
+                value = prescription_dosage.value,
+                onValueChange = { prescription_dosage.value = it },
+                label = { Text("Enter your prescription dosage") },
 
                 )
 
@@ -303,12 +316,36 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 
             Spacer(modifier = Modifier.height(30.dp))
 
-            TextField(
-                value = EducationLevel.value,
-                onValueChange = { EducationLevel.value = it },
-                label = { Text("Enter your Education Level") },
-
-                )
+            var expanded_Educ by remember { mutableStateOf(false) }
+            Box(
+                modifier = Modifier
+                    .padding(16.dp)
+            ) {
+                IconButton(onClick = { expanded_Educ = !expanded_Educ }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                }
+                DropdownMenu(
+                    expanded = expanded_Educ,
+                    onDismissRequest = { expanded_Educ = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("No") },
+                        onClick = { educationLevel = EducationLevel.No }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Primary") },
+                        onClick = { educationLevel = EducationLevel.Primary  }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Secondary") },
+                        onClick = { educationLevel = EducationLevel.Secondary  }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Diploma Degree") },
+                        onClick = { educationLevel = EducationLevel.DeplomaDegree  }
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(30.dp))
 
@@ -330,13 +367,13 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
             Text("Gender?")
 
             RadioButton(
-                selected = Gender.value == "Male",
-                onClick = { Gender.value = "Male" }
+                selected = gender.value == "Male",
+                onClick = { gender.value = "Male" }
             )
             Text("Male")
             RadioButton(
-                selected = Gender.value == "Female",
-                onClick = { Gender.value = "Female" }
+                selected = gender.value == "Female",
+                onClick = { gender.value = "Female" }
             )
             Text("Female")
 
@@ -358,6 +395,37 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 
             Spacer(modifier = Modifier.height(30.dp))
 
+            Text("Smoking")
+
+            var expanded_Smoking by remember { mutableStateOf(false) }
+            Box(
+                modifier = Modifier
+                    .padding(16.dp)
+            ) {
+                IconButton(onClick = { expanded_Smoking = !expanded_Smoking }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                }
+                DropdownMenu(
+                    expanded = expanded_Smoking,
+                    onDismissRequest = { expanded_Smoking = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Current") },
+                        onClick = { smokingStatus = SmokingStatus.Current }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Former") },
+                        onClick = { smokingStatus = SmokingStatus.Former  }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Never") },
+                        onClick = { smokingStatus = SmokingStatus.Never  }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+
             Text("APOEE4?")
 
             RadioButton(
@@ -375,16 +443,33 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 
             Text("Physical Activity?")
 
-            RadioButton(
-                selected = PhysicalActivity.value == "Yes",
-                onClick = { PhysicalActivity.value = "Yes" }
-            )
-            Text("Yes")
-            RadioButton(
-                selected = PhysicalActivity.value == "No",
-                onClick = { PhysicalActivity.value = "No" }
-            )
-            Text("No")
+
+            var expanded_PhyAct by remember { mutableStateOf(false) }
+            Box(
+                modifier = Modifier
+                    .padding(16.dp)
+            ) {
+                IconButton(onClick = { expanded_PhyAct = !expanded_PhyAct }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                }
+                DropdownMenu(
+                    expanded = expanded_PhyAct,
+                    onDismissRequest = { expanded_PhyAct = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Sedentary") },
+                        onClick = { physicalActivity = PhysicalActivity.Sedentary }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Mild") },
+                        onClick = { physicalActivity = PhysicalActivity.Mild  }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Moderate") },
+                        onClick = { physicalActivity = PhysicalActivity.Moderate  }
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(30.dp))
 
@@ -420,50 +505,280 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 
             Text("Nutrient Diet?")
 
-            RadioButton(
-                selected = NutrientDiet.value == "Yes",
-                onClick = { NutrientDiet.value = "Yes" }
-            )
-            Text("Yes")
-            RadioButton(
-                selected = NutrientDiet.value == "No",
-                onClick = { NutrientDiet.value = "No" }
-            )
-            Text("No")
+            var expanded_Diet by remember { mutableStateOf(false) }
+            Box(
+                modifier = Modifier
+                    .padding(16.dp)
+            ) {
+                IconButton(onClick = { expanded_Diet = !expanded_Diet }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                }
+                DropdownMenu(
+                    expanded = expanded_Diet,
+                    onDismissRequest = { expanded_Diet = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Balanced") },
+                        onClick = { nutrientDiet = NutritionDiet.Balanced }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Mediterranean") },
+                        onClick = { nutrientDiet = NutritionDiet.Mediterranean  }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("LowCarb") },
+                        onClick = { nutrientDiet = NutritionDiet.LowCarb }
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(30.dp))
 
             Text("Sleep Quality?")
 
-            RadioButton(
-                selected = SleepQuality.value == "Good",
-                onClick = { SleepQuality.value = "Good" }
-            )
-            Text("Good")
-            RadioButton(
-                selected = SleepQuality.value == "Bad",
-                onClick = { SleepQuality.value = "Good" }
-            )
-            Text("Bad")
+            var expanded_Sleep by remember { mutableStateOf(false) }
+            Box(
+                modifier = Modifier
+                    .padding(16.dp)
+            ) {
+                IconButton(onClick = { expanded_Sleep = !expanded_Sleep }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                }
+                DropdownMenu(
+                    expanded = expanded_Sleep,
+                    onDismissRequest = { expanded_Sleep = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Poor") },
+                        onClick = { sleepQuality = SleepQuality.Poor }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Good") },
+                        onClick = { sleepQuality = SleepQuality.Good  }
+                    )
+
+                }
+            }
 
             Spacer(modifier = Modifier.height(30.dp))
 
             Text("Chronic Health Conditions?")
 
-            RadioButton(
-                selected = ChronicHealthConditions.value == "Yes",
-                onClick = { ChronicHealthConditions.value = "Yes" }
-            )
-            Text("Yes")
-            RadioButton(
-                selected = ChronicHealthConditions.value == "No",
-                onClick = { ChronicHealthConditions.value = "No" }
-            )
-            Text("No")
+
+            var expanded_CHC by remember { mutableStateOf(false) }
+            Box(
+                modifier = Modifier
+                    .padding(16.dp)
+            ) {
+                IconButton(onClick = { expanded_CHC = !expanded_CHC }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                }
+                DropdownMenu(
+                    expanded = expanded_CHC,
+                    onDismissRequest = { expanded_CHC = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("None") },
+                        onClick = { chronicHealthConditions = ChronicHealthConditions.None }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Hypertension") },
+                        onClick = { chronicHealthConditions = ChronicHealthConditions.Hypertension  }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Hearth Disease") },
+                        onClick = { chronicHealthConditions = ChronicHealthConditions.HearthDisease }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Diabetes") },
+                        onClick = { chronicHealthConditions = ChronicHealthConditions.Diabetes }
+                    )
+                }
+            }
+
+
+                // For backend testing, can remove if want
+                Button(onClick = {
+                    val patientData = LifestyleData(
+                        Diabetic = if (Diabetic.value == "Yes") true else false,
+                        AlcoholLevel = alcohol.value.toFloat(),
+                        HeartRate = heartRate.value.toInt(),
+                        BloodOxygenLevel = BloodOxygenLevel.value.toFloat(),
+                        BodyTemperature = BodyTemperature.value.toFloat(),
+                        Weight = Weight.value.toFloat(),
+                        MRI_Delay = MRI_Delay.value.toFloat(),
+                        Prescription = Prescription(prescription_name.value, prescription_dosage.value.toInt() ),
+                        Age = Age.value.toInt(),
+                        EducationLevel = educationLevel,
+                        DominantHand = if (DominantHand.value == "Right") DomHand.Right else DomHand.Left,
+                        Gender = if (gender.value == "Male") Gender.Male else Gender.Female,
+                        FamilyHistory = if (FamilyHistory.value == "Yes") true else false,
+                        SmokingStatus = smokingStatus,
+                        APOEE4 = if (APOEE4.value == "Yes") true else false,
+                        PhysicalActivity = physicalActivity,
+                        DepressionStatus = if (DepressionStatus.value == "Yes") true else false,
+                        MedicationHistory = if (MedicationHistory.value == "Yes") true else false,
+                        NutrientDiet = nutrientDiet,
+                        SleepQuality = sleepQuality,
+                        ChronicHealthConditions = chronicHealthConditions
+                    )
+                    backend.send_lifestyle(
+                        ctx,
+                        patientData
+                    ) { resp -> // anonymous function is called when backend responds
+                        Log.i("CONOR",resp.toString())
+                    }
+
+                }) { Text("Submit") }
+            }
+
 
         }
     }
 
+
+@Composable
+fun QuestionnaireScreenC(){
+    val name = rememberSaveable { mutableStateOf("") }
+    val year = rememberSaveable { mutableStateOf("") }
+    val month = rememberSaveable { mutableStateOf("") }
+    val day = rememberSaveable { mutableStateOf("") }
+    val season = rememberSaveable { mutableStateOf("") }
+    val date = rememberSaveable { mutableStateOf("") }
+    val state = rememberSaveable { mutableStateOf("") }
+    val country = rememberSaveable { mutableStateOf("") }
+    val town = rememberSaveable { mutableStateOf("") }
+    val hospital = rememberSaveable { mutableStateOf("") }
+    val floor = rememberSaveable { mutableStateOf("") }
+    val BloodOxygenLevel = rememberSaveable { mutableStateOf("")}
+    val BodyTemperature = rememberSaveable { mutableStateOf("") }
+    val Weight = rememberSaveable { mutableStateOf("") }
+    val MRI_Delay = rememberSaveable { mutableStateOf("") }
+    val Prescription = rememberSaveable { mutableStateOf("") }
+    val Age = rememberSaveable { mutableStateOf("") }
+    val EducationLevel = rememberSaveable { mutableStateOf("") }
+    val DominantHand = rememberSaveable { mutableStateOf("Right") }
+    val Gender = rememberSaveable { mutableStateOf("Male") }
+    val FamilyHistory = rememberSaveable { mutableStateOf("Yes") }
+    val APOEE4 = rememberSaveable { mutableStateOf("Yes") }
+    val PhysicalActivity = rememberSaveable { mutableStateOf("Yes") }
+    val DepressionStatus = rememberSaveable { mutableStateOf("Yes") }
+    val MedicationHistory = rememberSaveable { mutableStateOf("Yes") }
+    val NutrientDiet = rememberSaveable { mutableStateOf("Yes") }
+    val SleepQuality  = rememberSaveable { mutableStateOf("Good") }
+    val ChronicHealthConditions = rememberSaveable { mutableStateOf("Yes") }
+    val modifier =  Modifier
+
+    Box(modifier
+        .fillMaxSize()
+        .background(Color.White),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    top = 50.dp, bottom = 100.dp,
+                    start = 50.dp, end = 50.dp
+                ),
+        ) {
+            Text(
+                text = "Cognitive Questionnaire",
+                fontSize = 36.sp,
+                color = Color.Black
+            )
+
+            Spacer(modifier = Modifier.height(60.dp))
+
+            TextField(
+                value = name.value,
+                onValueChange = { name.value = it },
+                label = { Text("Enter your name") },
+
+                )
+
+            Spacer(modifier = Modifier.height(30.dp))
+
+            Text("What year, season, date, day, month is it?")
+
+            TextField(
+                value = year.value,
+                onValueChange = { year.value = it },
+                label = {
+                    Text("Year")}
+            )
+
+            TextField(
+                value = season.value,
+                onValueChange = { season.value = it },
+                label = {
+                    Text("Season")}
+            )
+
+            TextField(
+                value = date.value,
+                onValueChange = { date.value = it },
+                label = {
+                    Text("Date (DD/MM/YYYY")}
+            )
+
+            TextField(
+                value = day.value,
+                onValueChange = { day.value = it },
+                label = {
+                    Text("Day of the Week")}
+            )
+
+            TextField(
+                value = month.value,
+                onValueChange = { month.value = it },
+                label = {
+                    Text("Month")}
+            )
+
+            Spacer(modifier = Modifier.height(30.dp))
+
+            Text(" Which state, country, town, hospital, floor are we on?")
+
+            TextField(
+                value = state.value,
+                onValueChange = { state.value = it },
+                label = {
+                    Text("State")}
+            )
+
+            TextField(
+                value = country.value,
+                onValueChange = { country.value = it },
+                label = {
+                    Text("Country")}
+            )
+
+            TextField(
+                value = town.value,
+                onValueChange = { town.value = it },
+                label = {
+                    Text("Town")}
+            )
+
+            TextField(
+                value = hospital.value,
+                onValueChange = { hospital.value = it },
+                label = {
+                    Text("Hospital")}
+            )
+
+            TextField(
+                value = floor.value,
+                onValueChange = { floor.value = it },
+                label = {
+                    Text("Floor")}
+            )
+
+
+        }
+    }
 }
 @Composable
 fun NotificationScreen( modifier: Modifier = Modifier) {
@@ -498,11 +813,195 @@ fun NotificationScreen( modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun LoginScreen() {
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+
+        // Username Field
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Username") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Password Field
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = if (passwordVisible) VisualTransformation.None
+            else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                        imageVector = if (passwordVisible)
+                            Icons.Default.Visibility
+                        else
+                            Icons.Default.VisibilityOff,
+                        contentDescription = if (passwordVisible) "Hide password"
+                        else "Show password"
+                    )
+                }
+            }
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        Button(
+            onClick = { },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Log In")
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Sign Up link
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text("Don't have an account? ")
+            Text(
+                text = "Sign Up",
+                modifier = Modifier.clickable {  },
+            )
+        }
+    }
+}
+
+@Composable
+fun SignUpScreen(
+) {
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
+
+    val isValid = name.isNotBlank() &&
+            Patterns.EMAIL_ADDRESS.matcher(email).matches() &&
+            password.length >= 6 &&
+            password == confirmPassword
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+
+        Text("Create Account")
+        Spacer(Modifier.height(24.dp))
+
+        // Name
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Full Name") },
+            leadingIcon = { Icon(Icons.Default.Person, null) },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(16.dp))
+
+        // Email
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") },
+            leadingIcon = { Icon(Icons.Default.Email, null) },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+        )
+        Spacer(Modifier.height(16.dp))
+
+        // Password
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            leadingIcon = { Icon(Icons.Default.Lock, null) },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                        if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = null
+                    )
+                }
+            }
+        )
+        Spacer(Modifier.height(16.dp))
+
+        // Confirm Password
+        OutlinedTextField(
+            value = confirmPassword,
+            onValueChange = { confirmPassword = it },
+            label = { Text("Confirm Password") },
+            leadingIcon = { Icon(Icons.Default.Lock, null) },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                    Icon(
+                        if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = null
+                    )
+                }
+            }
+        )
+        Spacer(Modifier.height(24.dp))
+
+        // Sign Up Button
+        Button(
+            onClick = {},
+            enabled = isValid,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Sign Up")
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Navigate to login
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text("Already have an account? ")
+            TextButton(onClick = {}) {
+                Text("Login")
+            }
+        }
+    }
+}
+
+
+
+@Composable
 fun Mainfunction() {
     val navController = rememberNavController()
     val navItemList = listOf(
         NavItem(label = "Home", icon = Icons.Default.Home, screen = Screen.Home),
-        NavItem(label = "Questionnaire", icon = Icons.Default.AccountBox, screen = Screen.Settings),
+        NavItem(label = "Questionnaire", icon = Icons.Default.AccountBox, screen = Screen.QuestionnaireSelect),
         NavItem(label = "Notification", icon = Icons.Default.Notifications, screen =
             Screen.Notification)
     )
@@ -544,6 +1043,8 @@ fun Mainfunction() {
         ) {
             composable(Screen.Home.route) { HomeScreen() }
             composable(Screen.Settings.route) { QuestionScreen() }
+            composable(Screen.QuestionnaireC.route) { QuestionnaireScreenC() }
+            composable(Screen.QuestionnaireSelect.route) { QuestionnaireSelect(navController) }
             composable(Screen.Notification.route) { NotificationScreen() }
         }
     }

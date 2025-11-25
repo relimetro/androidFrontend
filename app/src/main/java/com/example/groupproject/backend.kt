@@ -240,83 +240,141 @@ object backend {
 
     // Send Healtcare
     fun send_lifestyle(ctx: Context, data: LifestyleData, cb: (BErr)->Unit  ){
-	// if localmode
-        if (localMode) {
-            log("send_lifestyle LOCAL MODE")
-            cb(BErr.Ok)
-            return }
+        try {
+            // if localmode
+            if (localMode) {
+                log("send_lifestyle LOCAL MODE")
+                cb(BErr.Ok)
+                return
+            }
 
-	    // state request
-        val url = "$prefix/v1/send_lifestyle"
-        val queue = Volley.newRequestQueue(ctx)
+            // state request
+            val url = "$prefix/v1/send_lifestyle"
+            val queue = Volley.newRequestQueue(ctx)
 
-        // toString stuff
-		fun trueFalse(b:Boolean):String { return if (b) "true" else "false" }
-		val PrescriptionStr = if (data.Prescription != null) data.Prescription.name else "None"
-		val DosageStr = if (data.Prescription != null) data.Prescription.DosageMg else "0"
-		fun eduLevelStr(x:EducationLevel):String { return when(x) {
-            EducationLevel.No -> "No School"
-            EducationLevel.Primary -> "Primary School"
-            EducationLevel.Secondary -> "Secondary School"
-            EducationLevel.DeplomaDegree -> "Diploma/Degree" } }
-        fun DomHandStr(x: DomHand):String { return when(x) {
-            DomHand.Left -> "Left"
-            DomHand.Right -> "Right" } }
-        fun GenderStr(x:Gender):String { return when(x){
-            Gender.Male -> "Male"
-            Gender.Female -> "Female" } }
-        fun SmokingStr(x: SmokingStatus):String { return when(x){
-            SmokingStatus.Current -> "Current Smoker"
-            SmokingStatus.Former -> "Former Smoker"
-            SmokingStatus.Never -> "Never Smoked" } }
-        fun DietStr(x: NutritionDiet):String { return when(x){
-            NutritionDiet.LowCarb -> "Low-Carb"
-            NutritionDiet.Mediterranean -> "Mediterranean"
-            NutritionDiet.Balanced -> "Balanced Diet" }}
-        fun SleepStr(x: SleepQuality):String { return when(x){
-            SleepQuality.Poor -> "Poor"
-            SleepQuality.Good -> "Good" } }
-        fun ChronicStr(x: ChronicHealthConditions):String{ return when(x){
-            ChronicHealthConditions.Diabetes -> "Diabetes"
-            ChronicHealthConditions.HearthDisease -> "Heart Disease"
-            ChronicHealthConditions.Hypertension -> "Hypertension"
-            ChronicHealthConditions.None -> "None" }}
-        fun ActivityStr(x: PhysicalActivity):String{ return when(x){
-            PhysicalActivity.Sedentary -> "Sedentary"
-            PhysicalActivity.Moderate -> "Moderate Activity"
-            PhysicalActivity.Mild -> "Mild Activity" }}
+            // toString stuff
+            fun trueFalse(b: Boolean): String {
+                return if (b) "true" else "false"
+            }
 
-
-		val str = "Diabetic:${trueFalse(data.Diabetic)},AlcoholLevel:${data.AlcoholLevel}, HeartRate:${data.HeartRate}, BloodOxygenLevel:${data.BloodOxygenLevel}, BodyTemperature:${data.BodyTemperature}, Weight${data.Weight}, MRI_Delay:${data.MRI_Delay}, Prescription:${PrescriptionStr}, DosageMg:${DosageStr}, Age:${data.Age}, EducationLevel${eduLevelStr(data.EducationLevel)}, DominantHand:${DomHandStr(data.DominantHand)}, Gender:${GenderStr(data.Gender)}, FamilyHistory:${trueFalse(data.FamilyHistory)}, SmokingStatus:${SmokingStr(data.SmokingStatus)}, APOE_e19:${trueFalse(data.APOEE4)}, PhysicalActivity:${ActivityStr(data.PhysicalActivity)}, DepressionStatus:${trueFalse(data.DepressionStatus)}, MedicationHistory:${trueFalse(data.MedicationHistory)}, NutrientDiet:${DietStr(data.NutrientDiet)}, SleepQuality:${SleepStr(data.SleepQuality)}, ChronicHealthConditions${ChronicStr(data.ChronicHealthConditions)}"
-
-        log(str)
-	
-        val jsonBody = JSONObject("{\"message\":\"$str\"}")
-    	// note will need to include user ID when login/sessions are implemented (stored in this module, not somehting passed into function), will need to check for login/credentials before sending and early return BErr.Not_Signed_In
-
-	    // handle response
-        val req = object : JsonObjectRequest(
-            Method.POST, url, jsonBody,
-            Response.Listener { response -> cb(BErr.Ok) }, // response has "success" boolean
-
-            Response.ErrorListener { error ->
-		        var resp = BErr.Exception
-                log("send_lifestyle Error")
-
-                // check if network issue
-                if (error.cause != null){
-                    try { throw (error.cause as Throwable) }
-                    catch (e: ConnectException){
-                        resp = BErr.Not_Signed_In
-                        log("    NoConnectionError")
-                    }
-                    catch(e: Exception) { log("    Other Exception")}
+            val PrescriptionStr = if (data.Prescription != null) data.Prescription.name else "None"
+            val DosageStr = if (data.Prescription != null) data.Prescription.DosageMg else "0"
+            fun eduLevelStr(x: EducationLevel): String {
+                return when (x) {
+                    EducationLevel.No -> "No School"
+                    EducationLevel.Primary -> "Primary School"
+                    EducationLevel.Secondary -> "Secondary School"
+                    EducationLevel.DeplomaDegree -> "Diploma/Degree"
                 }
-                log( "    localizedMessage: ${error.localizedMessage}")
-                log( "    toString ${error.toString()}")
-                cb(resp) },
-        ) {}
-        queue.add(req)
+            }
+
+            fun DomHandStr(x: DomHand): String {
+                return when (x) {
+                    DomHand.Left -> "Left"
+                    DomHand.Right -> "Right"
+                }
+            }
+
+            fun GenderStr(x: Gender): String {
+                return when (x) {
+                    Gender.Male -> "Male"
+                    Gender.Female -> "Female"
+                }
+            }
+
+            fun SmokingStr(x: SmokingStatus): String {
+                return when (x) {
+                    SmokingStatus.Current -> "Current Smoker"
+                    SmokingStatus.Former -> "Former Smoker"
+                    SmokingStatus.Never -> "Never Smoked"
+                }
+            }
+
+            fun DietStr(x: NutritionDiet): String {
+                return when (x) {
+                    NutritionDiet.LowCarb -> "Low-Carb"
+                    NutritionDiet.Mediterranean -> "Mediterranean"
+                    NutritionDiet.Balanced -> "Balanced Diet"
+                }
+            }
+
+            fun SleepStr(x: SleepQuality): String {
+                return when (x) {
+                    SleepQuality.Poor -> "Poor"
+                    SleepQuality.Good -> "Good"
+                }
+            }
+
+            fun ChronicStr(x: ChronicHealthConditions): String {
+                return when (x) {
+                    ChronicHealthConditions.Diabetes -> "Diabetes"
+                    ChronicHealthConditions.HearthDisease -> "Heart Disease"
+                    ChronicHealthConditions.Hypertension -> "Hypertension"
+                    ChronicHealthConditions.None -> "None"
+                }
+            }
+
+            fun ActivityStr(x: PhysicalActivity): String {
+                return when (x) {
+                    PhysicalActivity.Sedentary -> "Sedentary"
+                    PhysicalActivity.Moderate -> "Moderate Activity"
+                    PhysicalActivity.Mild -> "Mild Activity"
+                }
+            }
+
+
+            val str =
+                "Diabetic:${trueFalse(data.Diabetic)},AlcoholLevel:${data.AlcoholLevel}, HeartRate:${data.HeartRate}, BloodOxygenLevel:${data.BloodOxygenLevel}, BodyTemperature:${data.BodyTemperature}, Weight${data.Weight}, MRI_Delay:${data.MRI_Delay}, Prescription:${PrescriptionStr}, DosageMg:${DosageStr}, Age:${data.Age}, EducationLevel:${eduLevelStr(data.EducationLevel)
+                }, DominantHand:${DomHandStr(data.DominantHand)}, Gender:${GenderStr(data.Gender)}, FamilyHistory:${
+                    trueFalse(
+                        data.FamilyHistory
+                    )
+                }, SmokingStatus:${SmokingStr(data.SmokingStatus)}, APOE_e19:${trueFalse(data.APOEE4)}, PhysicalActivity:${
+                    ActivityStr(
+                        data.PhysicalActivity
+                    )
+                }, DepressionStatus:${trueFalse(data.DepressionStatus)}, MedicationHistory:${
+                    trueFalse(
+                        data.MedicationHistory
+                    )
+                }, NutrientDiet:${DietStr(data.NutrientDiet)}, SleepQuality:${SleepStr(data.SleepQuality)}, ChronicHealthConditions${
+                    ChronicStr(
+                        data.ChronicHealthConditions
+                    )
+                }"
+
+            log(str)
+
+            val jsonBody = JSONObject("{\"message\":\"$str\"}")
+            // note will need to include user ID when login/sessions are implemented (stored in this module, not somehting passed into function), will need to check for login/credentials before sending and early return BErr.Not_Signed_In
+
+            // handle response
+            val req = object : JsonObjectRequest(
+                Method.POST, url, jsonBody,
+                Response.Listener { response -> cb(BErr.Ok) }, // response has "success" boolean
+
+                Response.ErrorListener { error ->
+                    var resp = BErr.Exception
+                    log("send_lifestyle Error")
+
+                    // check if network issue
+                    if (error.cause != null) {
+                        try {
+                            throw (error.cause as Throwable)
+                        } catch (e: ConnectException) {
+                            resp = BErr.Not_Signed_In
+                            log("    NoConnectionError")
+                        } catch (e: Exception) {
+                            log("    Other Exception")
+                        }
+                    }
+                    log("    localizedMessage: ${error.localizedMessage}")
+                    log("    toString ${error.toString()}")
+                    cb(resp)
+                },
+            ) {}
+            queue.add(req)
+        } catch (e: java.lang.Exception) { log(e.toString())}
     } // send_lifestyle end
 
     val ExampleLifestyle: LifestyleData = LifestyleData(
