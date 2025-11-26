@@ -154,10 +154,44 @@ fun HomeScreen(uvm: UserViewModel = UserViewModel()) {
                 {
                     Text("${uvm.username.value}")
                 }
-            }
-        }
-    }
-}
+
+
+                Row(Modifier.fillMaxWidth().height(100.dp)) {
+					val myRiskScore by rememberSavable { mutableStateOf("...") }
+					val ctx = LocalContext.current
+                    Text("Risk Score: ${myRiskScore}")
+					Button(onClick = {
+						backend.request_risk(ctx) { resp ->
+								when(resp.err){
+									BErr.Ok -> myRiskScore = resp.message
+									BErr.Not_Signed_In -> Log.i("blah","not signed in or no internet") // redirect to login
+									BErr.Exception -> Log.i("blah","exception") // other network issue
+								} }
+						}) { Text("calculate risk") }
+					}
+
+                Row(Modifier.fillMaxWidth().height(100.dp)) {
+					val myNews by rememberSavable { mutableStateOf("...") }
+					val ctx = LocalContext.current
+                    Text("News: ${myNews}")
+					Button(onClick = {
+						backend.request_news(ctx) { resp ->
+								when(resp.err){
+									BErr.Ok -> myNews = resp.message
+									BErr.Not_Signed_In -> Log.i("blah","not signed in or no internet") // redirect to login
+									BErr.Exception -> Log.i("blah","exception") // other network issue
+								} }
+						}) { Text("calculate risk") }
+					}
+
+
+
+
+
+				}
+			}
+		}
+	}
 
 @Composable
 fun QuestionnaireSelect(navController: NavController){

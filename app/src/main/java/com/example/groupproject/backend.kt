@@ -119,6 +119,7 @@ object backend {
     var backend_uid: String? = null
 
 
+
     // Hello Request
     fun request_hello(ctx: Context, x:String, cb: (Resp_Hello)->Unit  ){
 	// if localmode
@@ -161,12 +162,17 @@ object backend {
         queue.add(req)
     } // request_hello end
 
+
+
+
+
+
     // Login Request
     fun login(ctx: Context, myemail:String, mypassword:String, cb: (Resp_Login)->Unit  ){
         // if localmode
         if (localMode) {
             log("login LOCAL MODE")
-            cb(Resp_Login(BErr.Ok,true,"Hello, Me!"))
+            cb(Resp_Login(BErr.Ok,true,"Local login"))
             return }
 
         // state request
@@ -178,7 +184,6 @@ object backend {
         val req = object : JsonObjectRequest(
             Method.POST, url, jsonBody,
             Response.Listener { response ->
-                // response.has("message") // t*do validate return json
                 var message = "Ok"
                 var uid = "SHITFUCKDANI"
                 var id_token = "SHITFUCKDANI"
@@ -187,6 +192,7 @@ object backend {
                 try { id_token = response.getString("idToken") } catch (e: Exception) {}
                 log(response.toString())
                 log("login Success ${uid}, ${message}, ${id_token}")
+				// set backend variables (used for other functions)
                 backend_uid = uid
                 backend_id_token = id_token
 
@@ -194,9 +200,9 @@ object backend {
 
             Response.ErrorListener { error ->
                 var resp = Resp_Login(BErr.Exception,false,error.toString())
-                log("login Error") // 404 if auth failure
+                log("login Error")
 
-                // auth error
+                // auth error // 404 if auth failure (f u dani)
                 if (error.networkResponse.statusCode == 401 ) {
                     cb(Resp_Login(BErr.Ok,false,"Invalid Login"))
 
@@ -210,7 +216,7 @@ object backend {
                             log("    NoConnectionError")
                         }
                         catch(e: Exception) { log("    Other Exception")}
-                    } else { log("else auth") }
+                    } else { log("    else auth") }
                     log( "    localizedMessage: ${error.localizedMessage}")
                     log( "    toString ${error.toString()}")
                     cb(resp) } },
@@ -221,69 +227,81 @@ object backend {
 
 
 
-    // RIsk Request
-    fun request_risk(ctx: Context, name:String, pass:String, cb: (Resp_Hello)->Unit  ){
-	// if localmode
+
+
+    // Risk Request
+    fun request_risk(ctx: Context, cb: (Resp_Hello)->Unit  ){
+		// if localmode
         if (localMode) {
             log("Request_risk LOCAL MODE")
-            cb(Resp_Hello(BErr.Ok,"Lc"))
+            cb(Resp_Hello(BErr.Ok,"0.42"))
+			return }
+
+
+		if (backend_uid == null) { cb(Resp_Hello(BErr.Not_Signed_In, "0.5"))}
+		else {
+			// state request
+			val url = "$prefix/v1/get_risk"
+			val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
+			val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\"}")
+
+			val req = object : JsonObjectRequest(
+				Method.POST, url, jsonBody,
+				Response.Listener { response ->
+					val resp = Resp_Hello(BErr.Ok,response.getString("RiskScore"))
+					log("Risk-Risk Success ${resp.message}")
+					cb(resp) },
+
+				Response.ErrorListener { error ->
+					var resp = Resp_Hello(BErr.Exception,error.toString())
+					log("Request_Risk Error")
+
+					// check if network issue
+					if (error.cause != null){
+						try { throw (error.cause as Throwable) }
+						catch (e: ConnectException){
+							resp = Resp_Hello(BErr.Not_Signed_In,error.toString())
+							log("    NoConnectionError")
+						}
+						catch(e: Exception) { log("    Other Exception")}
+					}
+					log( "    localizedMessage: ${error.localizedMessage}")
+					log( "    toString ${error.toString()}")
+					cb(resp) },
+			) {}
+			queue.add(req)
+		}
+    } // request_risk end
+
+
+
+
+
+
+    // News Request
+    fun request_news(ctx: Context, cb: (Resp_Hello)->Unit  ){
+	// if localmode
+        if (localMode) {
+            log("Request_News LOCAL MODE")
+            cb(Resp_Hello(BErr.Ok,"You are all alone"))
             return }
 
 	// state request
-        val url = "$prefix/v1/login"
+        val url = "$prefix/v1/get_news"
         val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
-        val jsonBody = JSONObject("{\"Name\":\"$name\",\"Password\":\"$pass\",\"UserType\":\"Patient\"}")
+        val jsonBody = JSONObject("{\"Type\":\"Patient\"}")
 
 	// handle response
         val req = object : JsonObjectRequest(
             Method.POST, url, jsonBody,
             Response.Listener { response ->
-                val resp = Resp_Hello(BErr.Ok,response.getString("Temp"))
-                log("Risk-Login Success ${resp.message}")
-				// TODO START
-
-				val url = "$prefix/v1/get_risk"
-				val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
-				val jsonBody = JSONObject("{\"UserID\":\"${resp.message}\"}")
-
-				val req = object : JsonObjectRequest(
-					Method.POST, url, jsonBody,
-					Response.Listener { response ->
-						val resp2 = Resp_Hello(BErr.Ok,response.getString("Score"))
-						log("Risk-Risk Success ${resp2.message}")
-						cb(resp2) },
-
-						Response.ErrorListener { error ->
-							var resp = Resp_Hello(BErr.Exception,error.toString())
-							log("Request_Hello Error")
-
-							// check if network issue
-							if (error.cause != null){
-								try { throw (error.cause as Throwable) }
-								catch (e: ConnectException){
-									resp = Resp_Hello(BErr.Not_Signed_In,error.toString())
-									log("    NoConnectionError")
-								}
-								catch(e: Exception) { log("    Other Exception")}
-							}
-							log( "    localizedMessage: ${error.localizedMessage}")
-							log( "    toString ${error.toString()}")
-							cb(resp) },
-						) {}
-
-
-
-
-				// TOOD END
-
-                queue.add(req)
-
-                // cb(resp) },
-                },
+                val resp = Resp_Hello(BErr.Ok,response.getString("Content"))
+                log("Request_News Success ${resp.message}")
+                cb(resp) },
 
             Response.ErrorListener { error ->
                 var resp = Resp_Hello(BErr.Exception,error.toString())
-                log("Request_Hello Error")
+                log("Request_News Error")
 
                 // check if network issue
                 if (error.cause != null){
@@ -299,7 +317,9 @@ object backend {
                 cb(resp) },
         ) {}
         queue.add(req)
-    } // request_risk end
+    } // request_news end
+
+
 
 
 
@@ -313,6 +333,7 @@ object backend {
                 cb(BErr.Ok)
                 return
             }
+			// TODO checked logged in
 
             // state request
             val url = "$prefix/v1/send_lifestyle"
@@ -412,9 +433,8 @@ object backend {
             log(str)
 
             // val jsonBody = JSONObject("{\"UserID\":\"$str\"}")
-             val jsonBody = JSONObject("{\"UserID\":\"Conor\",\"data\":\"$str\"}")
+             val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"data\":\"$str\"}")
 
-            // note will need to include user ID when login/sessions are implemented (stored in this module, not somehting passed into function), will need to check for login/credentials before sending and early return BErr.Not_Signed_In
 
             // handle response
             val req = object : JsonObjectRequest(
@@ -468,6 +488,9 @@ object backend {
         SleepQuality = SleepQuality.Poor,
         ChronicHealthConditions = ChronicHealthConditions.Diabetes
     )
+
+
+
 
 
 
