@@ -1,5 +1,6 @@
 package com.example.groupproject
 
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.util.Patterns
@@ -67,6 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
 import com.example.backend.backend
 import com.example.backend.BErr
@@ -80,11 +82,17 @@ import com.example.backend.PhysicalActivity
 import com.example.backend.Prescription
 import com.example.backend.SleepQuality
 import com.example.backend.SmokingStatus
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
     object Settings : Screen("settings")
+    object Login : Screen("login")
+    object Signup : Screen("signup")
     object QuestionnaireSelect: Screen("questionnaireSelect")
     object QuestionnaireC : Screen("questionnaireC")
     object Notification : Screen("notifications")
@@ -102,19 +110,22 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             GroupProjectTheme {
-                //LoginScreen()
-                //SignUpScreen()
                 Mainfunction()
             }
         }
     }
 }
 
+class UserViewModel: ViewModel() {
+    var _username = MutableStateFlow("") // private, screens read using indes (not _index) and write using provided methods
+    var username: StateFlow<String> = _username.asStateFlow()
+}
+
 
 @Composable
-fun HomeScreen( modifier: Modifier = Modifier) {
+fun HomeScreen(uvm: UserViewModel = UserViewModel()) {
     // for backend testing (can remove if you want)
-
+    var modifier = Modifier
 
     Box(modifier
         .fillMaxSize()
@@ -137,16 +148,12 @@ fun HomeScreen( modifier: Modifier = Modifier) {
                     color = Color.Black
                 )
 
-//                Row(Modifier
-//                    .fillMaxWidth()
-//                    .height(100.dp)) {
-//                    TextField(
-//                        value = testIP,
-//                        onValueChange = { testIP = it },
-//                        label = { Text("Ip address") })
-//                    Button(onClick = { backend.setAddresss(testIP) }) { Text("change ip") }
-//
-//                }
+                Row(Modifier
+                    .fillMaxWidth()
+                    .height(100.dp))
+                {
+                    Text("${uvm.username.value}")
+                }
             }
         }
     }
@@ -968,8 +975,9 @@ fun NotificationScreen( modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun LoginScreen() {
-    var username by remember { mutableStateOf("") }
+fun LoginScreen( navController: NavController, uvm: UserViewModel = UserViewModel()) {
+    val c = LocalContext.current
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -982,11 +990,12 @@ fun LoginScreen() {
 
         // Username Field
         OutlinedTextField(
-            value = username,
-            onValueChange = { username = it },
-            label = { Text("Username") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") },
+            leadingIcon = { Icon(Icons.Default.Email, null) },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
         )
 
         Spacer(Modifier.height(16.dp))
@@ -1017,7 +1026,21 @@ fun LoginScreen() {
         Spacer(Modifier.height(24.dp))
 
         Button(
-            onClick = { },
+            onClick = {
+                backend.login(c, email,password, {x ->
+                    when(x.err){
+                        BErr.Ok -> {
+                          if (x.success){
+                              Log.i("blah","succ")
+                              navController.navigate(Screen.Home.route)
+                          } else { Log.i("blah","fail") }
+
+                        }
+                        BErr.Not_Signed_In -> Log.i("blah","internet fucky wucky") // no internet // cannot connect to server
+                        BErr.Exception -> Log.i("blah","exception") // other network issue
+                    }
+                   })
+                },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Log In")
@@ -1033,17 +1056,22 @@ fun LoginScreen() {
             Text("Don't have an account? ")
             Text(
                 text = "Sign Up",
-                modifier = Modifier.clickable {  },
+                modifier = Modifier.clickable { navController.navigate(Screen.Signup.route) },
             )
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SignUpScreen(
-) {
+fun SignUpScreen(navController: NavController) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var doctor by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+
+    val doctorList = listOf("Doctor 1", "Doctor 2", "Doctor 3", "Doctor 4")
+
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -1051,6 +1079,7 @@ fun SignUpScreen(
 
     val isValid = name.isNotBlank() &&
             Patterns.EMAIL_ADDRESS.matcher(email).matches() &&
+            doctor.isNotBlank() &&
             password.length >= 6 &&
             password == confirmPassword
 
@@ -1085,6 +1114,43 @@ fun SignUpScreen(
         )
         Spacer(Modifier.height(16.dp))
 
+        // Doctor Dropdown
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+
+            OutlinedTextField(
+                value = doctor,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Select Doctor") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                doctorList.forEach { item ->
+                    DropdownMenuItem(
+                        text = { Text(item) },
+                        onClick = {
+                            doctor = item
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
         // Password
         OutlinedTextField(
             value = password,
@@ -1103,6 +1169,7 @@ fun SignUpScreen(
                 }
             }
         )
+
         Spacer(Modifier.height(16.dp))
 
         // Confirm Password
@@ -1123,11 +1190,12 @@ fun SignUpScreen(
                 }
             }
         )
+
         Spacer(Modifier.height(24.dp))
 
         // Sign Up Button
         Button(
-            onClick = {},
+            onClick = {navController.navigate(Screen.Login.route)},
             enabled = isValid,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -1142,7 +1210,7 @@ fun SignUpScreen(
             horizontalArrangement = Arrangement.Center
         ) {
             Text("Already have an account? ")
-            TextButton(onClick = {}) {
+            TextButton(onClick = {navController.navigate(Screen.Login.route)}) {
                 Text("Login")
             }
         }
@@ -1152,7 +1220,7 @@ fun SignUpScreen(
 
 
 @Composable
-fun Mainfunction() {
+fun Mainfunction(uvm: UserViewModel = UserViewModel()) {
     val navController = rememberNavController()
     val navItemList = listOf(
         NavItem(label = "Home", icon = Icons.Default.Home, screen = Screen.Home),
@@ -1193,14 +1261,16 @@ fun Mainfunction() {
 // Set up the navigation graph
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route,
+            startDestination = Screen.Login.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Home.route) { HomeScreen() }
+            composable(Screen.Home.route) { HomeScreen(uvm) }
             composable(Screen.Settings.route) { QuestionScreen() }
             composable(Screen.QuestionnaireC.route) { QuestionnaireScreenC() }
             composable(Screen.QuestionnaireSelect.route) { QuestionnaireSelect(navController) }
             composable(Screen.Notification.route) { NotificationScreen() }
+            composable(Screen.Login.route) { LoginScreen(navController, uvm) }
+            composable(Screen.Signup.route) { SignUpScreen(navController) }
         }
     }
 }

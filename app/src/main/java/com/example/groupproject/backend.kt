@@ -1,7 +1,9 @@
 package com.example.backend
 
+import android.R
 import android.content.Context
 import android.util.Log
+import com.android.volley.NetworkResponse
 import com.android.volley.Response
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
@@ -91,6 +93,13 @@ data class Resp_Hello(
     val err: BErr,
     val message: String,
 )
+data class Resp_Login( // not used at the moment bc only need to respond with message
+    val err: BErr,
+    val success: Boolean,
+    val message: String, // messae which may or may not exist, instead of using an enum to show all possible errors dani istead uses a string and gives a message without saying what all the errors are so the frontend people cannot predict and account for possible errors
+    // val id_token: String, // session token used to auth for other requests
+    // val uid: String, // the Id of the user which is logged in
+)
 
 
 
@@ -106,6 +115,8 @@ object backend {
 
     var localMode = false
 
+    var backend_id_token: String? = null
+    var backend_uid: String? = null
 
 
     // Hello Request
@@ -150,7 +161,62 @@ object backend {
         queue.add(req)
     } // request_hello end
 
+    // Login Request
+    fun login(ctx: Context, myemail:String, mypassword:String, cb: (Resp_Login)->Unit  ){
+        // if localmode
+        if (localMode) {
+            log("login LOCAL MODE")
+            cb(Resp_Login(BErr.Ok,true,"Hello, Me!"))
+            return }
 
+        // state request
+        val url = "$prefix/v1/user_service.UserService/Login"
+        val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
+        val jsonBody = JSONObject("{\"email\":\"$myemail\",\"password\":\"$mypassword\"}")
+
+        // handle response
+        val req = object : JsonObjectRequest(
+            Method.POST, url, jsonBody,
+            Response.Listener { response ->
+                // response.has("message") // t*do validate return json
+                var message = "Ok"
+                var uid = "SHITFUCKDANI"
+                var id_token = "SHITFUCKDANI"
+                try { uid = response.getString("uid") } catch (e:Exception) {}
+                try { message = response.getString("message") } catch (e:Exception) {}
+                try { id_token = response.getString("idToken") } catch (e: Exception) {}
+                log(response.toString())
+                log("login Success ${uid}, ${message}, ${id_token}")
+                backend_uid = uid
+                backend_id_token = id_token
+
+                cb(Resp_Login(BErr.Ok,true, message)) },
+
+            Response.ErrorListener { error ->
+                var resp = Resp_Login(BErr.Exception,false,error.toString())
+                log("login Error") // 404 if auth failure
+
+                // auth error
+                if (error.networkResponse.statusCode == 401 ) {
+                    cb(Resp_Login(BErr.Ok,false,"Invalid Login"))
+
+                // other error
+                } else {
+                    // check if network issue
+                    if (error.cause != null){
+                        try { throw (error.cause as Throwable) }
+                        catch (e: ConnectException){
+                            resp = Resp_Login(BErr.Not_Signed_In,false,error.toString())
+                            log("    NoConnectionError")
+                        }
+                        catch(e: Exception) { log("    Other Exception")}
+                    } else { log("else auth") }
+                    log( "    localizedMessage: ${error.localizedMessage}")
+                    log( "    toString ${error.toString()}")
+                    cb(resp) } },
+        ) {}
+        queue.add(req)
+    } // login end
 
 
 
@@ -166,7 +232,7 @@ object backend {
 	// state request
         val url = "$prefix/v1/login"
         val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
-        val jsonBody = JSONObject("{\"UserName\":\"$name\",\"PlaintextPassword\":\"$pass\"}")
+        val jsonBody = JSONObject("{\"Name\":\"$name\",\"Password\":\"$pass\",\"UserType\":\"Patient\"}")
 
 	// handle response
         val req = object : JsonObjectRequest(
@@ -178,7 +244,7 @@ object backend {
 
 				val url = "$prefix/v1/get_risk"
 				val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
-				val jsonBody = JSONObject("{\"Temp\":\"${resp.message}\"}")
+				val jsonBody = JSONObject("{\"UserID\":\"${resp.message}\"}")
 
 				val req = object : JsonObjectRequest(
 					Method.POST, url, jsonBody,
