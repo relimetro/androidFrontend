@@ -34,6 +34,9 @@ import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
@@ -163,6 +166,7 @@ fun QuestionnaireSelect(navController: NavController){
 
     }
 }
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuestionScreen( modifier: Modifier = Modifier) {
     var testHttp: String by remember { mutableStateOf("")} // sample variable to show output to UI
@@ -224,17 +228,29 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.height(30.dp))
 
             Text("Diabetic")
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Right option
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    RadioButton(
+                        selected = Diabetic.value == "Yes",
+                        onClick = { Diabetic.value = "Yes" }
+                    )
+                    Text("Yes")
+                }
 
-            RadioButton(
-                selected = Diabetic.value == "Yes",
-                onClick = { Diabetic.value = "Yes" }
-            )
-            Text("Yes")
-            RadioButton(
-                selected = Diabetic.value == "No",
-                onClick = { Diabetic.value = "No" }
-            )
-            Text("No")
+                // Left option
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    RadioButton(
+                        selected = Diabetic.value == "No",
+                        onClick = { Diabetic.value = "No" }
+                    )
+                    Text("No")
+                }
+            }
+
 
             Spacer(modifier = Modifier.height(30.dp))
 
@@ -317,32 +333,43 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.height(30.dp))
 
             var expanded_Educ by remember { mutableStateOf(false) }
-            Box(
-                modifier = Modifier
-                    .padding(16.dp)
+            ExposedDropdownMenuBox(
+                expanded = expanded_Educ,
+                onExpandedChange = { expanded_Educ = !expanded_Educ }
             ) {
-                IconButton(onClick = { expanded_Educ = !expanded_Educ }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                }
-                DropdownMenu(
+                // The box/field that shows the user selection
+                TextField(
+                    value = educationLevel.name,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Education Level") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded_Educ)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
                     expanded = expanded_Educ,
                     onDismissRequest = { expanded_Educ = false }
                 ) {
                     DropdownMenuItem(
                         text = { Text("No") },
-                        onClick = { educationLevel = EducationLevel.No }
+                        onClick = { educationLevel = EducationLevel.No; expanded_Educ = false }
                     )
                     DropdownMenuItem(
                         text = { Text("Primary") },
-                        onClick = { educationLevel = EducationLevel.Primary  }
+                        onClick = { educationLevel = EducationLevel.Primary; expanded_Educ = false   }
                     )
                     DropdownMenuItem(
                         text = { Text("Secondary") },
-                        onClick = { educationLevel = EducationLevel.Secondary  }
+                        onClick = { educationLevel = EducationLevel.Secondary; expanded_Educ = false   }
                     )
                     DropdownMenuItem(
                         text = { Text("Diploma Degree") },
-                        onClick = { educationLevel = EducationLevel.DeplomaDegree  }
+                        onClick = { educationLevel = EducationLevel.DeplomaDegree; expanded_Educ = false   }
                     )
                 }
             }
@@ -351,75 +378,121 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 
             Text("Dominant Hand?")
 
-            RadioButton(
-                selected = DominantHand.value == "Right",
-                onClick = { DominantHand.value = "Right" }
-            )
-            Text("Right")
-            RadioButton(
-                selected = DominantHand.value == "Left",
-                onClick = { DominantHand.value = "Left" }
-            )
-            Text("Left")
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Right option
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    RadioButton(
+                        selected = DominantHand.value == "Right",
+                        onClick = { DominantHand.value = "Right" }
+                    )
+                    Text("Right")
+                }
+
+                // Left option
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    RadioButton(
+                        selected = DominantHand.value == "Left",
+                        onClick = { DominantHand.value = "Left" }
+                    )
+                    Text("Left")
+                }
+            }
 
             Spacer(modifier = Modifier.height(30.dp))
 
             Text("Gender?")
 
-            RadioButton(
-                selected = gender.value == "Male",
-                onClick = { gender.value = "Male" }
-            )
-            Text("Male")
-            RadioButton(
-                selected = gender.value == "Female",
-                onClick = { gender.value = "Female" }
-            )
-            Text("Female")
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Right option
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    RadioButton(
+                        selected = gender.value == "Male",
+                        onClick = { gender.value = "Male" }
+                    )
+                    Text("Male")
+                }
+
+                // Left option
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    RadioButton(
+                        selected = gender.value == "Female",
+                        onClick = { gender.value = "Female" }
+                    )
+                    Text("Female")
+                }
+            }
 
             Spacer(modifier = Modifier.height(30.dp))
 
             Text("Family History?")
 
-            RadioButton(
-                selected = FamilyHistory.value == "Yes",
-                onClick = { FamilyHistory.value = "Yes" }
-            )
-            Text("Yes")
-            RadioButton(
-                selected = FamilyHistory.value == "No",
-                onClick = { FamilyHistory.value = "No" }
-            )
-            Text("No")
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Right option
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    RadioButton(
+                        selected = FamilyHistory.value == "Yes",
+                        onClick = { FamilyHistory.value = "Yes" }
+                    )
+                    Text("Yes")
+                }
 
+                    // Left option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = FamilyHistory.value == "No",
+                            onClick = { FamilyHistory.value = "No" }
+                        )
+                        Text("No")
+                    }
+                }
 
             Spacer(modifier = Modifier.height(30.dp))
 
             Text("Smoking")
 
             var expanded_Smoking by remember { mutableStateOf(false) }
-            Box(
-                modifier = Modifier
-                    .padding(16.dp)
+            ExposedDropdownMenuBox(
+                expanded = expanded_Smoking,
+                onExpandedChange = { expanded_Smoking = !expanded_Smoking }
             ) {
-                IconButton(onClick = { expanded_Smoking = !expanded_Smoking }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                }
-                DropdownMenu(
+                // The box/field that shows the user selection
+                TextField(
+                    value = smokingStatus.name,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Smoking") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded_Smoking)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
                     expanded = expanded_Smoking,
                     onDismissRequest = { expanded_Smoking = false }
                 ) {
                     DropdownMenuItem(
                         text = { Text("Current") },
-                        onClick = { smokingStatus = SmokingStatus.Current }
+                        onClick = { smokingStatus = SmokingStatus.Current; expanded_Smoking = false }
                     )
                     DropdownMenuItem(
                         text = { Text("Former") },
-                        onClick = { smokingStatus = SmokingStatus.Former  }
+                        onClick = { smokingStatus = SmokingStatus.Former; expanded_Smoking = false   }
                     )
                     DropdownMenuItem(
                         text = { Text("Never") },
-                        onClick = { smokingStatus = SmokingStatus.Never  }
+                        onClick = { smokingStatus = SmokingStatus.Never; expanded_Smoking = false   }
                     )
                 }
             }
@@ -428,16 +501,29 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 
             Text("APOEE4?")
 
-            RadioButton(
-                selected = APOEE4.value == "Yes",
-                onClick = { APOEE4.value = "Yes" }
-            )
-            Text("Yes")
-            RadioButton(
-                selected = APOEE4.value == "No",
-                onClick = { APOEE4.value = "No" }
-            )
-            Text("No")
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Right option
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    RadioButton(
+                        selected = APOEE4.value == "Yes",
+                        onClick = { APOEE4.value = "Yes" }
+                    )
+                    Text("Yes")
+                }
+
+                    // Left option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = APOEE4.value == "No",
+                            onClick = { APOEE4.value = "No" }
+                        )
+                        Text("No")
+                    }
+                }
+
 
             Spacer(modifier = Modifier.height(30.dp))
 
@@ -445,28 +531,39 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 
 
             var expanded_PhyAct by remember { mutableStateOf(false) }
-            Box(
-                modifier = Modifier
-                    .padding(16.dp)
+            ExposedDropdownMenuBox(
+                expanded = expanded_PhyAct,
+                onExpandedChange = { expanded_PhyAct = !expanded_PhyAct }
             ) {
-                IconButton(onClick = { expanded_PhyAct = !expanded_PhyAct }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                }
-                DropdownMenu(
+                // The box/field that shows the user selection
+                TextField(
+                    value = physicalActivity.name,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Physical Activity Level") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded_PhyAct)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
                     expanded = expanded_PhyAct,
                     onDismissRequest = { expanded_PhyAct = false }
                 ) {
                     DropdownMenuItem(
                         text = { Text("Sedentary") },
-                        onClick = { physicalActivity = PhysicalActivity.Sedentary }
+                        onClick = { physicalActivity = PhysicalActivity.Sedentary; expanded_PhyAct = false }
                     )
                     DropdownMenuItem(
                         text = { Text("Mild") },
-                        onClick = { physicalActivity = PhysicalActivity.Mild  }
+                        onClick = { physicalActivity = PhysicalActivity.Mild; expanded_PhyAct = false  }
                     )
                     DropdownMenuItem(
                         text = { Text("Moderate") },
-                        onClick = { physicalActivity = PhysicalActivity.Moderate  }
+                        onClick = { physicalActivity = PhysicalActivity.Moderate; expanded_PhyAct = false  }
                     )
                 }
             }
@@ -475,59 +572,95 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 
             Text("Depression Status?")
 
-            RadioButton(
-                selected = DepressionStatus.value == "Yes",
-                onClick = { DepressionStatus.value = "Yes" }
-            )
-            Text("Yes")
-            RadioButton(
-                selected = DepressionStatus.value == "No",
-                onClick = { DepressionStatus.value = "No" }
-            )
-            Text("No")
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Right option
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    RadioButton(
+                        selected = DepressionStatus.value == "Yes",
+                        onClick = { DepressionStatus.value = "Yes" }
+                    )
+                    Text("Yes")
+                }
+                    // Left option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = DepressionStatus.value == "No",
+                            onClick = { DepressionStatus.value = "No" }
+                        )
+                        Text("No")
+                    }
+                }
+
 
             Spacer(modifier = Modifier.height(30.dp))
 
             Text("Medication History?")
 
-            RadioButton(
-                selected = MedicationHistory.value == "Yes",
-                onClick = { MedicationHistory.value = "Yes" }
-            )
-            Text("Yes")
-            RadioButton(
-                selected = MedicationHistory.value == "No",
-                onClick = { MedicationHistory.value = "No" }
-            )
-            Text("No")
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Right option
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    RadioButton(
+                        selected = MedicationHistory.value == "Yes",
+                        onClick = { MedicationHistory.value = "Yes" }
+                    )
+                    Text("Yes")
+                }
+
+                    // Left option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = MedicationHistory.value == "No",
+                            onClick = { MedicationHistory.value = "No" }
+                        )
+                        Text("No")
+                    }
+                }
+
 
             Spacer(modifier = Modifier.height(30.dp))
 
             Text("Nutrient Diet?")
 
             var expanded_Diet by remember { mutableStateOf(false) }
-            Box(
-                modifier = Modifier
-                    .padding(16.dp)
+            ExposedDropdownMenuBox(
+                expanded = expanded_Diet,
+                onExpandedChange = { expanded_Diet = !expanded_Diet }
             ) {
-                IconButton(onClick = { expanded_Diet = !expanded_Diet }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                }
-                DropdownMenu(
+                // The box/field that shows the user selection
+                TextField(
+                    value = nutrientDiet.name,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Nutrition Diet") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded_Diet)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
                     expanded = expanded_Diet,
                     onDismissRequest = { expanded_Diet = false }
                 ) {
                     DropdownMenuItem(
                         text = { Text("Balanced") },
-                        onClick = { nutrientDiet = NutritionDiet.Balanced }
+                        onClick = { nutrientDiet = NutritionDiet.Balanced; expanded_Diet = false }
                     )
                     DropdownMenuItem(
                         text = { Text("Mediterranean") },
-                        onClick = { nutrientDiet = NutritionDiet.Mediterranean  }
+                        onClick = { nutrientDiet = NutritionDiet.Mediterranean; expanded_Diet = false  }
                     )
                     DropdownMenuItem(
                         text = { Text("LowCarb") },
-                        onClick = { nutrientDiet = NutritionDiet.LowCarb }
+                        onClick = { nutrientDiet = NutritionDiet.LowCarb; expanded_Diet = false }
                     )
                 }
             }
@@ -537,24 +670,35 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
             Text("Sleep Quality?")
 
             var expanded_Sleep by remember { mutableStateOf(false) }
-            Box(
-                modifier = Modifier
-                    .padding(16.dp)
+            ExposedDropdownMenuBox(
+                expanded = expanded_Sleep,
+                onExpandedChange = { expanded_Sleep = !expanded_Sleep }
             ) {
-                IconButton(onClick = { expanded_Sleep = !expanded_Sleep }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                }
-                DropdownMenu(
+                // The box/field that shows the user selection
+                TextField(
+                    value = sleepQuality.name,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Sleep Quality") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded_Sleep)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
                     expanded = expanded_Sleep,
                     onDismissRequest = { expanded_Sleep = false }
                 ) {
                     DropdownMenuItem(
                         text = { Text("Poor") },
-                        onClick = { sleepQuality = SleepQuality.Poor }
+                        onClick = { sleepQuality = SleepQuality.Poor; expanded_Sleep = false }
                     )
                     DropdownMenuItem(
                         text = { Text("Good") },
-                        onClick = { sleepQuality = SleepQuality.Good  }
+                        onClick = { sleepQuality = SleepQuality.Good; expanded_Sleep = false  }
                     )
 
                 }
@@ -566,32 +710,43 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 
 
             var expanded_CHC by remember { mutableStateOf(false) }
-            Box(
-                modifier = Modifier
-                    .padding(16.dp)
+            ExposedDropdownMenuBox(
+                expanded = expanded_CHC,
+                onExpandedChange = { expanded_CHC = !expanded_CHC }
             ) {
-                IconButton(onClick = { expanded_CHC = !expanded_CHC }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                }
-                DropdownMenu(
+                // The box/field that shows the user selection
+                TextField(
+                    value = chronicHealthConditions.name,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Chronic Health Conditions?") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded_CHC)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
                     expanded = expanded_CHC,
                     onDismissRequest = { expanded_CHC = false }
                 ) {
                     DropdownMenuItem(
                         text = { Text("None") },
-                        onClick = { chronicHealthConditions = ChronicHealthConditions.None }
+                        onClick = { chronicHealthConditions = ChronicHealthConditions.None; expanded_CHC = false }
                     )
                     DropdownMenuItem(
                         text = { Text("Hypertension") },
-                        onClick = { chronicHealthConditions = ChronicHealthConditions.Hypertension  }
+                        onClick = { chronicHealthConditions = ChronicHealthConditions.Hypertension; expanded_CHC = false  }
                     )
                     DropdownMenuItem(
                         text = { Text("Hearth Disease") },
-                        onClick = { chronicHealthConditions = ChronicHealthConditions.HearthDisease }
+                        onClick = { chronicHealthConditions = ChronicHealthConditions.HearthDisease; expanded_CHC = false }
                     )
                     DropdownMenuItem(
                         text = { Text("Diabetes") },
-                        onClick = { chronicHealthConditions = ChronicHealthConditions.Diabetes }
+                        onClick = { chronicHealthConditions = ChronicHealthConditions.Diabetes; expanded_CHC = false }
                     )
                 }
             }
