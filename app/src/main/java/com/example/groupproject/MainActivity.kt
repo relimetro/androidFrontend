@@ -146,7 +146,7 @@ fun HomeScreen(uvm: UserViewModel = UserViewModel()) {
                     text = "Home Screen",
                     fontSize = 36.sp,
                     color = Color.Black
-                )
+                ) }
 
                 Row(Modifier
                     .fillMaxWidth()
@@ -157,9 +157,9 @@ fun HomeScreen(uvm: UserViewModel = UserViewModel()) {
 
 
                 Row(Modifier.fillMaxWidth().height(100.dp)) {
-					val myRiskScore by rememberSavable { mutableStateOf("...") }
-					val ctx = LocalContext.current
-                    Text("Risk Score: ${myRiskScore}")
+					var myRiskScore by rememberSaveable { mutableStateOf("...") }
+					val ctx = LocalContext.current;
+                    Text("Risk Score: $myRiskScore")
 					Button(onClick = {
 						backend.request_risk(ctx) { resp ->
 								when(resp.err){
@@ -171,7 +171,7 @@ fun HomeScreen(uvm: UserViewModel = UserViewModel()) {
 					}
 
                 Row(Modifier.fillMaxWidth().height(100.dp)) {
-					val myNews by rememberSavable { mutableStateOf("...") }
+                    var myNews by rememberSaveable { mutableStateOf("...") }
 					val ctx = LocalContext.current
                     Text("News: ${myNews}")
 					Button(onClick = {
@@ -181,7 +181,7 @@ fun HomeScreen(uvm: UserViewModel = UserViewModel()) {
 									BErr.Not_Signed_In -> Log.i("blah","not signed in or no internet") // redirect to login
 									BErr.Exception -> Log.i("blah","exception") // other network issue
 								} }
-						}) { Text("calculate risk") }
+						}) { Text("get news") }
 					}
 
 
@@ -191,7 +191,6 @@ fun HomeScreen(uvm: UserViewModel = UserViewModel()) {
 				}
 			}
 		}
-	}
 
 @Composable
 fun QuestionnaireSelect(navController: NavController){
