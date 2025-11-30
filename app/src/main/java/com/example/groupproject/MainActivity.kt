@@ -148,17 +148,12 @@ fun HomeScreen(uvm: UserViewModel = UserViewModel()) {
                     color = Color.Black
                 ) }
 
-                Row(Modifier
-                    .fillMaxWidth()
-                    .height(100.dp))
-                {
-                    Text("${uvm.username.value}")
-                }
+
 
 
                 Row(Modifier.fillMaxWidth().height(100.dp)) {
 					var myRiskScore by rememberSaveable { mutableStateOf("...") }
-					val ctx = LocalContext.current;
+                    val ctx = LocalContext.current
                     Text("Risk Score: $myRiskScore")
 					Button(onClick = {
 						backend.request_risk(ctx) { resp ->
