@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,15 +32,22 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
@@ -49,7 +57,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -86,6 +96,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.time.LocalDateTime
+import java.time.format.TextStyle
+import java.util.Locale
 
 
 sealed class Screen(val route: String) {
@@ -103,6 +116,162 @@ data class NavItem(
     val icon: ImageVector,
     val screen: Screen
 )
+
+enum class AttentionMode { SERIAL_7S, WORLD_BACKWARD }
+
+data class MmseState(
+    // Orientation
+    val orientationTime: List<String> = List(5) { "" },   // year, season, date, day, month
+    val orientationPlace: List<String> = List(5) { "" },  // state, country, town, hospital, floor
+
+    // Registration
+    val registrationWordsShown: List<String> = List(3) { "" },
+    val registrationImmediate: List<String> = List(3) { "" },
+
+    // Attention & Calculation
+    val attentionMode: AttentionMode = AttentionMode.SERIAL_7S,
+    val serial7Answers: List<String> = List(5) { "" },
+    val worldBackward: String = "",
+
+    // Recall
+    val recallAnswers: List<String> = List(3) { "" },
+
+    // Language (up to repetition)
+    val repetitionInput: String = ""
+)
+
+class MmseViewModel : ViewModel() {
+    private val correctLocationAnswers = listOf(
+        "Ireland", // Country
+        "Munster",    // State
+        "Cork",   // City/Town
+        "Cork University Hospital", // Hospital
+        "2nd Floor"      // Floor
+    )
+
+    private fun currentSeason(month: Int): String =
+        when (month) {
+            12, 1, 2 -> "Winter"
+            3, 4, 5 -> "Spring"
+            6, 7, 8 -> "Summer"
+            else -> "Fall"
+        }
+
+    private val _state = MutableStateFlow(MmseState())
+    val state: StateFlow<MmseState> = _state
+
+    fun setOrientationTime(index: Int, value: String) = _state.update {
+        it.copy(orientationTime = it.orientationTime.toMutableList().also { list -> list[index] = value })
+    }
+
+    fun setOrientationPlace(index: Int, value: String) = _state.update {
+        it.copy(orientationPlace = it.orientationPlace.toMutableList().also { list -> list[index] = value })
+    }
+
+    fun setRegistrationWord(index: Int, value: String) = _state.update {
+        it.copy(
+            registrationWordsShown = it.registrationWordsShown
+                .toMutableList()
+                .also { list -> list[index] = value }
+        )
+    }
+
+    fun setRegistrationImmediate(index: Int, value: String) = _state.update {
+        it.copy(registrationImmediate = it.registrationImmediate.toMutableList().also { list -> list[index] = value })
+    }
+
+    fun setAttentionMode(mode: AttentionMode) = _state.update { it.copy(attentionMode = mode) }
+
+    fun setSerial7(index: Int, value: String) = _state.update {
+        it.copy(serial7Answers = it.serial7Answers.toMutableList().also { list -> list[index] = value })
+    }
+
+    fun setWorldBackward(value: String) = _state.update { it.copy(worldBackward = value) }
+
+    fun setRecall(index: Int, value: String) = _state.update {
+        it.copy(recallAnswers = it.recallAnswers.toMutableList().also { list -> list[index] = value })
+    }
+
+    fun setRepetition(value: String) = _state.update { it.copy(repetitionInput = value) }
+
+    fun computeScore(): Int {
+        val s = _state.value
+        var score = 0
+
+        /* ---------------- ORIENTATION: TIME (5) ---------------- */
+        val today = LocalDateTime.now()
+
+        val correctTimeAnswers = listOf(
+            today.year.toString(),
+            currentSeason(today.monthValue),
+            today.dayOfMonth.toString(),
+            today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
+            today.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH)
+        )
+
+        correctTimeAnswers.forEachIndexed { i, correct ->
+            if (s.orientationTime[i].trim().equals(correct, ignoreCase = true)) {
+                score++
+            }
+        }
+
+        /* ---------------- ORIENTATION: PLACE (5) ---------------- */
+        correctLocationAnswers.forEachIndexed { i, correct ->
+            if (s.orientationPlace[i].trim().equals(correct, ignoreCase = true)) {
+                score++
+            }
+        }
+
+        /* ---------------- REGISTRATION (3) ---------------- */
+        val registrationCorrect = s.registrationWordsShown
+            .map { it.trim().lowercase() }
+            .toSet()
+
+        val registrationGiven = s.registrationImmediate
+            .map { it.trim().lowercase() }
+            .toSet()
+
+        score += registrationCorrect.intersect(registrationGiven).size.coerceAtMost(3)
+
+        /* ---------------- ATTENTION & CALCULATION (5) ---------------- */
+        when (s.attentionMode) {
+            AttentionMode.SERIAL_7S -> {
+                val correctSerial7s = listOf("93", "86", "79", "72", "65")
+
+                correctSerial7s.forEachIndexed { i, correct ->
+                    if (s.serial7Answers.getOrNull(i)?.trim() == correct) {
+                        score++
+                    }
+                }
+            }
+
+            AttentionMode.WORLD_BACKWARD -> {
+                if (s.worldBackward.trim().equals("dlrow", ignoreCase = true)) {
+                    score += 5
+                }
+            }
+        }
+
+        /* ---------------- RECALL (3) ---------------- */
+        val recallGiven = s.recallAnswers
+            .map { it.trim().lowercase() }
+            .toSet()
+
+        score += registrationCorrect.intersect(recallGiven).size.coerceAtMost(3)
+
+        /* ---------------- LANGUAGE: REPETITION (1) ---------------- */
+        if (s.repetitionInput.trim()
+                .equals("No ifs, ands, or buts", ignoreCase = true)
+        ) {
+            score++
+        }
+
+        return score
+    }
+
+}
+
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -828,148 +997,158 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 
 
 @Composable
-fun QuestionnaireScreenC(){
-    val name = rememberSaveable { mutableStateOf("") }
-    val year = rememberSaveable { mutableStateOf("") }
-    val month = rememberSaveable { mutableStateOf("") }
-    val day = rememberSaveable { mutableStateOf("") }
-    val season = rememberSaveable { mutableStateOf("") }
-    val date = rememberSaveable { mutableStateOf("") }
-    val state = rememberSaveable { mutableStateOf("") }
-    val country = rememberSaveable { mutableStateOf("") }
-    val town = rememberSaveable { mutableStateOf("") }
-    val hospital = rememberSaveable { mutableStateOf("") }
-    val floor = rememberSaveable { mutableStateOf("") }
-    val BloodOxygenLevel = rememberSaveable { mutableStateOf("")}
-    val BodyTemperature = rememberSaveable { mutableStateOf("") }
-    val Weight = rememberSaveable { mutableStateOf("") }
-    val MRI_Delay = rememberSaveable { mutableStateOf("") }
-    val Prescription = rememberSaveable { mutableStateOf("") }
-    val Age = rememberSaveable { mutableStateOf("") }
-    val EducationLevel = rememberSaveable { mutableStateOf("") }
-    val DominantHand = rememberSaveable { mutableStateOf("Right") }
-    val Gender = rememberSaveable { mutableStateOf("Male") }
-    val FamilyHistory = rememberSaveable { mutableStateOf("Yes") }
-    val APOEE4 = rememberSaveable { mutableStateOf("Yes") }
-    val PhysicalActivity = rememberSaveable { mutableStateOf("Yes") }
-    val DepressionStatus = rememberSaveable { mutableStateOf("Yes") }
-    val MedicationHistory = rememberSaveable { mutableStateOf("Yes") }
-    val NutrientDiet = rememberSaveable { mutableStateOf("Yes") }
-    val SleepQuality  = rememberSaveable { mutableStateOf("Good") }
-    val ChronicHealthConditions = rememberSaveable { mutableStateOf("Yes") }
-    val modifier =  Modifier
+fun QuestionnaireScreenC(Cvm: MmseViewModel = MmseViewModel()){
+    val state by Cvm.state.collectAsState()
+    val score by remember(state) { mutableIntStateOf(Cvm.computeScore()) }
 
-    Box(modifier
-        .fillMaxSize()
-        .background(Color.White),
-        contentAlignment = Alignment.Center
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(
-                    top = 50.dp, bottom = 100.dp,
-                    start = 50.dp, end = 50.dp
-                ),
-        ) {
-            Text(
-                text = "Cognitive Questionnaire",
-                fontSize = 36.sp,
-                color = Color.Black
-            )
+        Text("MMSE", style = MaterialTheme.typography.headlineSmall)
+        Text("Included sections: Orientation, Registration, Attention/Calculation, Recall, Language (repetition).")
+        AssistChip(onClick = {}, label = { Text("Score: $score / 22") })
 
-            Spacer(modifier = Modifier.height(60.dp))
-
-            TextField(
-                value = name.value,
-                onValueChange = { name.value = it },
-                label = { Text("Enter your name") },
-
+        // ORIENTATION
+        SectionCard("Orientation — Time (5)") {
+            val labels = listOf("Year", "Season", "Date (day of month)", "Day", "Month")
+            labels.forEachIndexed { i, label ->
+                OutlinedTextField(
+                    value = state.orientationTime[i],
+                    onValueChange = { Cvm.setOrientationTime(i, it) },
+                    label = { Text(label) },
+                    modifier = Modifier.fillMaxWidth()
                 )
-
-            Spacer(modifier = Modifier.height(30.dp))
-
-            Text("What year, season, date, day, month is it?")
-
-            TextField(
-                value = year.value,
-                onValueChange = { year.value = it },
-                label = {
-                    Text("Year")}
-            )
-
-            TextField(
-                value = season.value,
-                onValueChange = { season.value = it },
-                label = {
-                    Text("Season")}
-            )
-
-            TextField(
-                value = date.value,
-                onValueChange = { date.value = it },
-                label = {
-                    Text("Date (DD/MM/YYYY")}
-            )
-
-            TextField(
-                value = day.value,
-                onValueChange = { day.value = it },
-                label = {
-                    Text("Day of the Week")}
-            )
-
-            TextField(
-                value = month.value,
-                onValueChange = { month.value = it },
-                label = {
-                    Text("Month")}
-            )
-
-            Spacer(modifier = Modifier.height(30.dp))
-
-            Text(" Which state, country, town, hospital, floor are we on?")
-
-            TextField(
-                value = state.value,
-                onValueChange = { state.value = it },
-                label = {
-                    Text("State")}
-            )
-
-            TextField(
-                value = country.value,
-                onValueChange = { country.value = it },
-                label = {
-                    Text("Country")}
-            )
-
-            TextField(
-                value = town.value,
-                onValueChange = { town.value = it },
-                label = {
-                    Text("Town")}
-            )
-
-            TextField(
-                value = hospital.value,
-                onValueChange = { hospital.value = it },
-                label = {
-                    Text("Hospital")}
-            )
-
-            TextField(
-                value = floor.value,
-                onValueChange = { floor.value = it },
-                label = {
-                    Text("Floor")}
-            )
-
-
+            }
         }
+
+        SectionCard("Orientation — Place (5)") {
+            val labels = listOf("Country", "County", "Town", "Hospital", "Floor")
+            labels.forEachIndexed { i, label ->
+                OutlinedTextField(
+                    value = state.orientationPlace[i],
+                    onValueChange = { Cvm.setOrientationPlace(i, it) },
+                    label = { Text(label) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        SectionCard("Registration (3)") {
+
+            Text("Examiner: Enter 3 words to be repeated")
+
+            state.registrationWordsShown.forEachIndexed { i, _ ->
+                OutlinedTextField(
+                    value = state.registrationWordsShown[i],
+                    onValueChange = { Cvm.setRegistrationWord(i, it) },
+                    label = { Text("Word ${i + 1}") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
+
+            Text("Patient: Immediate repetition")
+
+            state.registrationImmediate.forEachIndexed { i, _ ->
+                OutlinedTextField(
+                    value = state.registrationImmediate[i],
+                    onValueChange = { Cvm.setRegistrationImmediate(i, it) },
+                    label = { Text("Response ${i + 1}") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        // ATTENTION & CALCULATION
+        SectionCard("Attention and Calculation (5)") {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = state.attentionMode == AttentionMode.SERIAL_7S,
+                    onClick = { Cvm.setAttentionMode(AttentionMode.SERIAL_7S) },
+                    label = { Text("Serial 7s") }
+                )
+                FilterChip(
+                    selected = state.attentionMode == AttentionMode.WORLD_BACKWARD,
+                    onClick = { Cvm.setAttentionMode(AttentionMode.WORLD_BACKWARD) },
+                    label = { Text("WORLD backward") }
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            when (state.attentionMode) {
+                AttentionMode.SERIAL_7S -> {
+                    Text("Enter up to 5 answers (1 point each).")
+                    state.serial7Answers.forEachIndexed { i, _ ->
+                        OutlinedTextField(
+                            value = state.serial7Answers[i],
+                            onValueChange = { Cvm.setSerial7(i, it) },
+                            label = { Text("Answer ${i + 1}") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                AttentionMode.WORLD_BACKWARD -> {
+                    Text("Spell “world” backward.")
+                    OutlinedTextField(
+                        value = state.worldBackward,
+                        onValueChange = Cvm::setWorldBackward,
+                        label = { Text("Input") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
+        // RECALL
+        SectionCard("Recall (3)") {
+            Text("Ask for the 3 objects from Registration.")
+            state.recallAnswers.forEachIndexed { i, _ ->
+                OutlinedTextField(
+                    value = state.recallAnswers[i],
+                    onValueChange = { Cvm.setRecall(i, it) },
+                    label = { Text("Recalled object ${i + 1}") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        // LANGUAGE (Repetition only)
+        SectionCard("Language — Repetition (1)") {
+            Text("Repeat the following:")
+            Text("“No ifs, ands, or buts”", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(
+                value = state.repetitionInput,
+                onValueChange = Cvm::setRepetition,
+                label = { Text("Patient response") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
     }
 }
+
+@Composable
+private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Card {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            content = {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                content()
+            }
+        )
+    }
+}
+
 @Composable
 fun NotificationScreen( modifier: Modifier = Modifier) {
     Box(modifier
@@ -1248,7 +1427,7 @@ fun SignUpScreen(navController: NavController) {
 
 
 @Composable
-fun Mainfunction(uvm: UserViewModel = UserViewModel()) {
+fun Mainfunction(uvm: UserViewModel = UserViewModel(), Cvm: MmseViewModel =MmseViewModel()) {
     val navController = rememberNavController()
     val navItemList = listOf(
         NavItem(label = "Home", icon = Icons.Default.Home, screen = Screen.Home),
@@ -1294,7 +1473,7 @@ fun Mainfunction(uvm: UserViewModel = UserViewModel()) {
         ) {
             composable(Screen.Home.route) { HomeScreen(uvm) }
             composable(Screen.Settings.route) { QuestionScreen() }
-            composable(Screen.QuestionnaireC.route) { QuestionnaireScreenC() }
+            composable(Screen.QuestionnaireC.route) { QuestionnaireScreenC(Cvm) }
             composable(Screen.QuestionnaireSelect.route) { QuestionnaireSelect(navController) }
             composable(Screen.Notification.route) { NotificationScreen() }
             composable(Screen.Login.route) { LoginScreen(navController, uvm) }
