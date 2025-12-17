@@ -96,7 +96,7 @@ data class Resp_Hello(
 data class Resp_Login( // not used at the moment bc only need to respond with message
     val err: BErr,
     val success: Boolean,
-    val message: String, // messae which may or may not exist, instead of using an enum to show all possible errors dani istead uses a string and gives a message without saying what all the errors are so the frontend people cannot predict and account for possible errors
+    val message: String, // message which may or may not exist, instead of using an enum to show all possible errors dani istead uses a string and gives a message without saying what all the errors are so the frontend people cannot predict and account for possible errors
     // val id_token: String, // session token used to auth for other requests
     // val uid: String, // the Id of the user which is logged in
 )
@@ -216,6 +216,67 @@ object backend {
                             log("    NoConnectionError")
                         }
                         catch(e: Exception) { log("    Other Exception")}
+                    } else { log("    else auth") }
+                    log( "    localizedMessage: ${error.localizedMessage}")
+                    log( "    toString ${error.toString()}")
+                    cb(resp) } },
+        ) {}
+        queue.add(req)
+    } // login end
+
+
+
+    // Login Request
+    fun signUp(ctx: Context, myemail:String, mypassword:String, cb: (Resp_Login)->Unit  ){
+        // if localmode
+        if (localMode) {
+            log("signUp LOCAL MODE")
+            cb(Resp_Login(BErr.Ok,true,"Local signUp"))
+            return }
+
+        // state request
+        val url = "$prefix/v1/user_service.UserService/SignUp"
+        val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
+        val jsonBody = JSONObject("{\"email\":\"$myemail\",\"password\":\"$mypassword\"}")
+
+        // handle response
+        val req = object : JsonObjectRequest(
+            Method.POST, url, jsonBody,
+            Response.Listener { response ->
+                var message = "Ok"
+                var uid = "SHITFUCKDANI"
+                var id_token = "SHITFUCKDANI"
+                try { uid = response.getString("uid") } catch (e:Exception) {}
+                try { message = response.getString("message") } catch (e:Exception) {}
+                try { id_token = response.getString("idToken") } catch (e: Exception) {}
+                log(response.toString())
+                log("signup Success ${uid}, ${message}, ${id_token}")
+
+                if (message == "User ${myemail} created successfully.") { // dani did not implement a system that returns meaningful return messages (such as a success boolean/error code) so I match on user created successfully message
+                    cb(Resp_Login(BErr.Ok,true, message))
+                } else { cb(Resp_Login(BErr.Ok,false, message)) }
+               },
+
+
+            Response.ErrorListener { error ->
+                var resp = Resp_Login(BErr.Exception,false,error.toString())
+                log("signup Error")
+
+                // auth error // 404 if auth failure (f u dani)
+                if (error.networkResponse.statusCode == 401 ) {
+                    cb(Resp_Login(BErr.Ok,false,"SHOULD NOT EVERY HAPPEN Invalid Signup"))
+
+                    // other error
+                } else {
+                    // check if network issue
+                    if (error.cause != null){
+                        try { throw (error.cause as Throwable) }
+                        catch (e: ConnectException){
+                            resp = Resp_Login(BErr.Not_Signed_In,false,error.toString())
+                            log("    NoConnectionError")
+                            log("    ${e}")
+                        }
+                        catch(e: Exception) { log("    Other Exception"); log(e.toString())}
                     } else { log("    else auth") }
                     log( "    localizedMessage: ${error.localizedMessage}")
                     log( "    toString ${error.toString()}")

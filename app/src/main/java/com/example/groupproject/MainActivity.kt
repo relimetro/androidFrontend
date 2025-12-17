@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.util.Patterns
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -86,6 +87,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.security.KeyStore
 
 
 sealed class Screen(val route: String) {
@@ -1093,6 +1095,7 @@ fun LoginScreen( navController: NavController, uvm: UserViewModel = UserViewMode
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(navController: NavController) {
+    var cont = LocalContext.current
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var doctor by remember { mutableStateOf("") }
@@ -1119,6 +1122,7 @@ fun SignUpScreen(navController: NavController) {
     ) {
 
         Text("Create Account")
+        Text("requirements:\nemail address matches regex or some shit\ndoctor not blank\npassword >= 6\npasswords match")
         Spacer(Modifier.height(24.dp))
 
         // Name
@@ -1223,7 +1227,14 @@ fun SignUpScreen(navController: NavController) {
 
         // Sign Up Button
         Button(
-            onClick = {navController.navigate(Screen.Login.route)},
+            onClick = {
+                backend.signUp(cont, email, password) { x ->
+                    when (x.err) {
+                        BErr.Ok -> navController.navigate(Screen.Login.route)
+                        BErr.Not_Signed_In -> Toast.makeText( cont, "Cannot Connect To Backend", Toast.LENGTH_SHORT ).show()
+                        BErr.Exception -> Toast.makeText( cont, "Exception, see logs", Toast.LENGTH_SHORT ).show()
+                    } }
+                },
             enabled = isValid,
             modifier = Modifier.fillMaxWidth()
         ) {
