@@ -226,7 +226,73 @@ object backend {
 
 
 
-    // Login Request
+    // used to init user details with required details for backend
+    fun initUser(ctx: Context){
+        addUserDetail(ctx,"HasDementia","Unknown")
+        addUserDetail(ctx,"Type","Patient")
+        addUserDetail(ctx,"RiskScore","")
+    }
+
+
+
+    // Signup Request
+    fun addUserDetail(ctx: Context, key:String, value:String ){
+        // if localmode
+        if (localMode) { return }
+
+        // state request
+        val url = "$prefix/v1/user_service.UserService/AddUserDetails"
+        val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
+        val jsonBody = JSONObject("{\"id_token\":\"$backend_id_token\",\"details\":\"{\"$key\":\"$value\"}\"}")
+        log(jsonBody.toString())
+
+        // handle response
+        val req = object : JsonObjectRequest(
+            Method.POST, url, jsonBody,
+            Response.Listener { response ->
+                var message = "Ok Probably"
+                try { message = response.getString("message") } catch (e:Exception) {}
+                log(response.toString())
+                log("add user details (probably) successful ${message}")
+               },
+
+
+            Response.ErrorListener { error ->
+                var resp = Resp_Login(BErr.Exception,false,error.toString())
+                log("add user details Error")
+
+                // auth error // 404 if auth failure (f u dani)
+                if (error.networkResponse.statusCode == 401 ) {
+                    log("SHOULD NOT EVERY HAPPEN Invalid Signup")
+
+                // other error
+                } else {
+                    // check if network issue
+                    if (error.cause != null) {
+                        try {
+                            throw (error.cause as Throwable)
+                        } catch (e: ConnectException) {
+                            log("    NoConnectionError")
+                            log("    ${e}")
+                        } catch (e: Exception) {
+                            log("    Other Exception"); log(e.toString())
+                        }
+                    } else {
+                        log("    else auth")
+                    }
+                    log("    localizedMessage: ${error.localizedMessage}")
+                    log("    toString ${error.toString()}")
+                } },
+        ) {}
+        queue.add(req)
+    } // addUserDetail end
+
+
+
+
+
+
+    // Signup Request
     fun signUp(ctx: Context, myemail:String, mypassword:String, cb: (Resp_Login)->Unit  ){
         // if localmode
         if (localMode) {
@@ -255,7 +321,7 @@ object backend {
                 if (message == "User ${myemail} created successfully.") { // dani did not implement a system that returns meaningful return messages (such as a success boolean/error code) so I match on user created successfully message
                     cb(Resp_Login(BErr.Ok,true, message))
                 } else { cb(Resp_Login(BErr.Ok,false, message)) }
-               },
+            },
 
 
             Response.ErrorListener { error ->
@@ -283,7 +349,7 @@ object backend {
                     cb(resp) } },
         ) {}
         queue.add(req)
-    } // login end
+    } // Signup end
 
 
 

@@ -1398,7 +1398,13 @@ fun SignUpScreen(navController: NavController) {
                     onClick = {
                         backend.signUp(cont, email, password) { x ->
                             when (x.err) {
-                                BErr.Ok -> navController.navigate(Screen.Login.route)
+                                BErr.Ok -> {
+                                    backend.initUser(cont)
+                                    backend.addUserDetail(cont, "Name",name)
+                                    backend.addUserDetail(cont, "Email",email)
+                                    backend.addUserDetail(cont, "testPassword",password)
+                                    navController.navigate(Screen.Login.route)
+                                }
                                 BErr.Not_Signed_In -> Toast.makeText( cont, "Cannot Connect To Backend", Toast.LENGTH_SHORT ).show()
                                 BErr.Exception -> Toast.makeText( cont, "Exception, see logs", Toast.LENGTH_SHORT ).show()
                             } }
