@@ -121,6 +121,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 
@@ -425,6 +426,10 @@ class UserViewModel: ViewModel() {
     var _username = MutableStateFlow("Conor") // private, screens read using indes (not _index) and write using provided methods
     var username: StateFlow<String> = _username.asStateFlow()
 
+    fun setUsername(name: String) {
+        _username.value = name
+    }
+
     private val _latestAudioRecording =
         MutableStateFlow<AudioRecordingResult?>(null)
 
@@ -479,6 +484,7 @@ fun PageBanner(title: String) {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeScreen(uvm: UserViewModel) {
+    val username by uvm.username.collectAsState()
 
     Box(
         modifier = Modifier
@@ -662,28 +668,28 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
     var testHttp: String by remember { mutableStateOf("") } // sample variable to show output to UI
     val ctx = LocalContext.current // need to pass "context" as argument when calling request
     var testIP by rememberSaveable { mutableStateOf(value = "localhost") }
-    var name = rememberSaveable { mutableStateOf("") }
-    val Diabetic = rememberSaveable { mutableStateOf("") }
-    var alcohol = rememberSaveable { mutableStateOf("") }
-    var heartRate = rememberSaveable { mutableStateOf("") }
-    var BloodOxygenLevel = rememberSaveable { mutableStateOf("") }
-    var BodyTemperature = rememberSaveable { mutableStateOf("") }
-    var Weight = rememberSaveable { mutableStateOf("") }
-    var MRI_Delay = rememberSaveable { mutableStateOf("") }
-    var prescription_name = rememberSaveable { mutableStateOf("") }
-    var prescription_dosage = rememberSaveable { mutableStateOf("") }
-    var Age = rememberSaveable { mutableStateOf("") }
-    var educationLevel by rememberSaveable { mutableStateOf(EducationLevel.No) }
-    var DominantHand = rememberSaveable { mutableStateOf("Right") }
-    var gender = rememberSaveable { mutableStateOf("Male") }
-    var FamilyHistory = rememberSaveable { mutableStateOf("Yes") }
-    var smokingStatus by rememberSaveable { mutableStateOf(SmokingStatus.Never) }
-    var APOEE4 = rememberSaveable { mutableStateOf("Yes") }
-    var physicalActivity by rememberSaveable { mutableStateOf(PhysicalActivity.Mild) }
-    var DepressionStatus = rememberSaveable { mutableStateOf("Yes") }
+    var name = rememberSaveable { mutableStateOf("") }//
+    val Diabetic = rememberSaveable { mutableStateOf("") }//
+    var alcohol = rememberSaveable { mutableStateOf("") }//
+    var heartRate = rememberSaveable { mutableStateOf("") }//
+    var BloodOxygenLevel = rememberSaveable { mutableStateOf("") }//
+    var BodyTemperature = rememberSaveable { mutableStateOf("") }//
+    var Weight = rememberSaveable { mutableStateOf("") }//
+    var MRI_Delay = rememberSaveable { mutableStateOf("") }//
+    var prescription_name = rememberSaveable { mutableStateOf("") }//
+    var prescription_dosage = rememberSaveable { mutableStateOf("") }//
+    var Age = rememberSaveable { mutableStateOf("") }//
+    var educationLevel by rememberSaveable { mutableStateOf(EducationLevel.No) }//
+    var DominantHand = rememberSaveable { mutableStateOf("Right") }//
+    var gender = rememberSaveable { mutableStateOf("Male") }//
+    var FamilyHistory = rememberSaveable { mutableStateOf("Yes") }//
+    var smokingStatus by rememberSaveable { mutableStateOf(SmokingStatus.Never) }//
+    var APOEE4 = rememberSaveable { mutableStateOf("Yes") }//
+    var physicalActivity by rememberSaveable { mutableStateOf(PhysicalActivity.Mild) }//
+    var DepressionStatus = rememberSaveable { mutableStateOf("Yes") }//
     var MedicationHistory = rememberSaveable { mutableStateOf("Yes") }
-    var nutrientDiet by rememberSaveable { mutableStateOf(NutritionDiet.Balanced) }
-    var sleepQuality by rememberSaveable { mutableStateOf(SleepQuality.Poor) }
+    var nutrientDiet by rememberSaveable { mutableStateOf(NutritionDiet.Balanced) }//
+    var sleepQuality by rememberSaveable { mutableStateOf(SleepQuality.Poor) }//
     var chronicHealthConditions by rememberSaveable { mutableStateOf(ChronicHealthConditions.None) }
 
 
@@ -720,21 +726,98 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 
                 Text("Gender")
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    RadioButton(
-                        selected = gender.value == "Male",
-                        onClick = { gender.value = "Male" }
-                    )
-                    Text("Male")
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        RadioButton(
+                            selected = gender.value == "Male",
+                            onClick = { gender.value = "Male" }
+                        )
+                        Text("Male")
+                    }
+
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Left option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = gender.value == "Female",
+                            onClick = { gender.value = "Female" }
+                        )
+                        Text("Female")
+                    }
                 }
 
-                // Left option
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    RadioButton(
-                        selected = gender.value == "Female",
-                        onClick = { gender.value = "Female" }
+                var expanded_Educ by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expanded_Educ,
+                    onExpandedChange = { expanded_Educ = !expanded_Educ }
+                ) {
+                    // The box/field that shows the user selection
+                    TextField(
+                        value = educationLevel.name,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Education Level") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded_Educ)
+                        },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
                     )
-                    Text("Female")
+
+                    ExposedDropdownMenu(
+                        expanded = expanded_Educ,
+                        onDismissRequest = { expanded_Educ = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("No") },
+                            onClick = { educationLevel = EducationLevel.No; expanded_Educ = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Primary") },
+                            onClick = { educationLevel = EducationLevel.Primary; expanded_Educ = false   }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Secondary") },
+                            onClick = { educationLevel = EducationLevel.Secondary; expanded_Educ = false   }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Diploma Degree") },
+                            onClick = { educationLevel = EducationLevel.DeplomaDegree; expanded_Educ = false   }
+                        )
+                    }
                 }
+
+                Text("Dominant Hand?")
+
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Right option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = DominantHand.value == "Right",
+                            onClick = { DominantHand.value = "Right" }
+                        )
+                        Text("Right")
+                    }
+
+                    // Left option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = DominantHand.value == "Left",
+                            onClick = { DominantHand.value = "Left" }
+                        )
+                        Text("Left")
+                    }
+                }
+
+
+
             }
 
             SectionCard(title = "Medical History") {
@@ -768,10 +851,131 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
                     )
                     Text("No")
                 }
+
+                TextField(
+                    value = MRI_Delay.value,
+                    onValueChange = { MRI_Delay.value = it },
+                    label = { Text("MRI Delay") },
+
+                    )
+
+                TextField(
+                    value = prescription_name.value,
+                    onValueChange = { prescription_name.value = it },
+                    label = { Text("Prescription Name") },
+
+                    )
+                TextField(
+                    value = prescription_dosage.value,
+                    onValueChange = { prescription_dosage.value = it },
+                    label = { Text("Prescription Dosage") },
+
+                    )
+                Text("APOEE4?")
+
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Right option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = APOEE4.value == "Yes",
+                            onClick = { APOEE4.value = "Yes" }
+                        )
+                        Text("Yes")
+                    }
+
+                    // Left option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = APOEE4.value == "No",
+                            onClick = { APOEE4.value = "No" }
+                        )
+                        Text("No")
+                    }
+                }
+
+                Text("Medication History?")
+
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Right option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = MedicationHistory.value == "Yes",
+                            onClick = { MedicationHistory.value = "Yes" }
+                        )
+                        Text("Yes")
+                    }
+
+                    // Left option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = MedicationHistory.value == "No",
+                            onClick = { MedicationHistory.value = "No" }
+                        )
+                        Text("No")
+                    }
+                }
+
+                Text("Chronic Health Conditions?")
+
+
+                var expanded_CHC by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expanded_CHC,
+                    onExpandedChange = { expanded_CHC = !expanded_CHC }
+                ) {
+                    // The box/field that shows the user selection
+                    TextField(
+                        value = chronicHealthConditions.name,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Chronic Health Conditions?") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded_CHC)
+                        },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expanded_CHC,
+                        onDismissRequest = { expanded_CHC = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("None") },
+                            onClick = { chronicHealthConditions = ChronicHealthConditions.None; expanded_CHC = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Hypertension") },
+                            onClick = { chronicHealthConditions = ChronicHealthConditions.Hypertension; expanded_CHC = false  }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Hearth Disease") },
+                            onClick = { chronicHealthConditions = ChronicHealthConditions.HearthDisease; expanded_CHC = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Diabetes") },
+                            onClick = { chronicHealthConditions = ChronicHealthConditions.Diabetes; expanded_CHC = false }
+                        )
+                    }
+                }
+
+
+
             }
 
             SectionCard(title = "Lifestyle") {
-
+                TextField(
+                    value = alcohol.value,
+                    onValueChange = { alcohol.value = it },
+                    label = { Text("Alcohol Level") },
+                )
                 Text("Smoking Status")
                 var expanded_Smoking by remember { mutableStateOf(false) }
                 ExposedDropdownMenuBox(
@@ -943,6 +1147,33 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
 
                     }
                 }
+
+                Text("Depression Status?")
+
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Right option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = DepressionStatus.value == "Yes",
+                            onClick = { DepressionStatus.value = "Yes" }
+                        )
+                        Text("Yes")
+                    }
+                    // Left option
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = DepressionStatus.value == "No",
+                            onClick = { DepressionStatus.value = "No" }
+                        )
+                        Text("No")
+                    }
+                }
+
+
+
             }
 
             SectionCard(title = "Vital Signs") {
@@ -1491,7 +1722,12 @@ fun LoginScreen(
                         backend.login(c, email, password) { x ->
                             when (x.err) {
                                 BErr.Ok -> {
-                                    uvm.onLoginSuccess(email) // or username
+                                    uvm.onLoginSuccess()
+                                    backend.request_data(c) { resp ->
+                                        if (resp.err == BErr.Ok) {
+                                            uvm.setUsername(resp.message.Name)
+                                        }
+                                    }
                                     navController.navigate(Screen.Home.route) {
                                         popUpTo(Screen.Login.route) { inclusive = true }
                                     }
