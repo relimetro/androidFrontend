@@ -192,7 +192,7 @@ object backend {
                     backend_id_token = idToken
                     cb(Resp_Hello(BErr.Ok,res))
                 } else {
-                    cb(Resp_Hello(BErr.Ok,res)) }
+                    cb(Resp_Hello(BErr.Exception,res)) }
             },
 
     Response.ErrorListener { error ->
