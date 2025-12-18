@@ -7,12 +7,12 @@ import com.android.volley.NetworkResponse
 import com.android.volley.Response
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
+import com.example.groupproject.RiskResult
 import org.json.JSONObject
 import java.net.ConnectException
 
 
 // DOCUMENTATION
-// IMPORTANT, fow now URL is hardcoded to IP address and will need to be manually set to whatever machine is currently hosting
 // import com.example.backend.backend
 // import com.example.backend.BErr
 
@@ -23,26 +23,8 @@ import java.net.ConnectException
 // localMode (boolean variable)
 // when enabled requests will respond with dummy data, rather than making network requests, for testing without server running
 
-// request_hello(LocalContext.current, "NAME") { resp -> ... }
-// response is of type Resp_Hello (has two fields, err:BErr, message:String (string has error message if err)
-
-// send_lifestyle(LocalContext.current, LifestyleData) { resp -> ... }
-// response is of type BErr
-// NOTE: not implemented in backend yet
 
 
-// TODO (that cathal needs to do) login seperate to get_risk score
-
-
-
-
-
-
-// Send data
-//
-// Lifestyle questionare
-// cathal is using this dataset for LLM fine-tuning https://www.kaggle.com/api/v1/datasets/download/timothyadeyemi/dementia-patient-health-dataset
-// features: Diabetic:Bool, AlcoholLevel:Float, HeartRate:int, BloodOxygenLevel: float, BodyTemperature: float, Weight:float, MRI_Delay: float, Presecription: String?, DosageMg: int? , Age: int, EducationLevel: [Primary,Secondary,No,Deploma/Degree], DominantHand: [left,right], Gender: [male,female], FamilyHistory:bool, SmokingStatus: [Current,Former,Never], APOE_e4:[positive,Negative], PhysicalActivity:[sedentary,moderate,mild], DepressionStatus:bool, MedicationHistory:bool,NutritionDiet:[LowCarb,Mediterranean,Balanced],SleepQuality:[Poor,Good],ChronicHealthConditions:[Diabetes,HearthDisease,Hypertension,None]
 
 
 
@@ -80,6 +62,16 @@ data class LifestyleData ( // not sure if all are relevant so we might decide to
     val ChronicHealthConditions: ChronicHealthConditions,
 )
 
+enum class DementiaEnum { Unknown, Positive, Negative }
+data class PatientInfo (
+    val Name: String,
+    val HasDementia: DementiaEnum,
+    val DoctorID: String?,
+    val RiskScore: String?, // is a float
+)
+
+val dummyPatient = PatientInfo("Conor", DementiaEnum.Unknown, null, "0.5")
+
 
 
 // Responses
@@ -93,12 +85,10 @@ data class Resp_Hello(
     val err: BErr,
     val message: String,
 )
-data class Resp_Login( // not used at the moment bc only need to respond with message
+
+data class Resp_Patient(
     val err: BErr,
-    val success: Boolean,
-    val message: String, // message which may or may not exist, instead of using an enum to show all possible errors dani istead uses a string and gives a message without saying what all the errors are so the frontend people cannot predict and account for possible errors
-    // val id_token: String, // session token used to auth for other requests
-    // val uid: String, // the Id of the user which is logged in
+    val message: PatientInfo,
 )
 
 
@@ -110,6 +100,7 @@ data class Resp_Login( // not used at the moment bc only need to respond with me
 object backend {
     // private var ipa = "000.00.00.00"
     private var ipa = "dementica.danigoes.online"
+    // private var ipa = "localhost"
     private var prefix = "http://${ipa}:80"
     fun setAddresss(ipa:String) { this.ipa = ipa; prefix = "http://${ipa}:80" }
 
@@ -168,122 +159,105 @@ object backend {
 
 
     // Login Request
-    fun login(ctx: Context, myemail:String, mypassword:String, cb: (Resp_Login)->Unit  ){
+    fun login(ctx: Context, myemail:String, mypassword:String, cb: (Resp_Hello)->Unit  ){
         // if localmode
         if (localMode) {
             log("login LOCAL MODE")
-            cb(Resp_Login(BErr.Ok,true,"Local login"))
+            cb(Resp_Hello(BErr.Ok,"Ok"))
             return }
 
         // state request
-        val url = "$prefix/v1/user_service.UserService/Login"
+        val url = "$prefix/v1/login"
         val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
-        val jsonBody = JSONObject("{\"email\":\"$myemail\",\"password\":\"$mypassword\"}")
+        val jsonBody = JSONObject("{\"Email\":\"$myemail\",\"Password\":\"$mypassword\",\"UserType\":\"Patient\"}")
 
         // handle response
         val req = object : JsonObjectRequest(
             Method.POST, url, jsonBody,
             Response.Listener { response ->
-                var message = "Ok"
-                var uid = "SHITFUCKDANI"
-                var id_token = "SHITFUCKDANI"
-                try { uid = response.getString("uid") } catch (e:Exception) {}
-                try { message = response.getString("message") } catch (e:Exception) {}
-                try { id_token = response.getString("idToken") } catch (e: Exception) {}
+                val uid = response.getString("UserID")
+                val idToken = response.getString("IdToken")
+                val res = response.getString("Result")
                 log(response.toString())
-                log("login Success ${uid}, ${message}, ${id_token}")
-				// set backend variables (used for other functions)
-                backend_uid = uid
-                backend_id_token = id_token
-
-                cb(Resp_Login(BErr.Ok,true, message)) },
-
-            Response.ErrorListener { error ->
-                var resp = Resp_Login(BErr.Exception,false,error.toString())
-                log("login Error")
-
-                // auth error // 404 if auth failure (f u dani)
-                if (error.networkResponse.statusCode == 401 ) {
-                    cb(Resp_Login(BErr.Ok,false,"Invalid Login"))
-
-                // other error
+                log("login Success $res, $uid, $idToken")
+                // set backend variables (used for other functions)
+                if (res == "Ok") {
+                    backend_uid = uid
+                    backend_id_token = idToken
+                    cb(Resp_Hello(BErr.Ok,res))
                 } else {
-                    // check if network issue
-                    if (error.cause != null){
-                        try { throw (error.cause as Throwable) }
-                        catch (e: ConnectException){
-                            resp = Resp_Login(BErr.Not_Signed_In,false,error.toString())
-                            log("    NoConnectionError")
-                        }
-                        catch(e: Exception) { log("    Other Exception")}
-                    } else { log("    else auth") }
-                    log( "    localizedMessage: ${error.localizedMessage}")
-                    log( "    toString ${error.toString()}")
-                    cb(resp) } },
+                    cb(Resp_Hello(BErr.Ok,res)) }
+            },
+
+    Response.ErrorListener { error ->
+        var resp = Resp_Hello(BErr.Exception,error.toString())
+        log("login Error")
+
+        // check if network issue
+        if (error.cause != null){
+            try { throw (error.cause as Throwable) }
+            catch (e: ConnectException){
+                resp = Resp_Hello(BErr.Not_Signed_In,error.toString())
+                log("    NoConnectionError")
+            }
+            catch(e: Exception) { log("    Other Exception")}
+        } else { log("    else auth") }
+        log( "    localizedMessage: ${error.localizedMessage}")
+        log( "    toString ${error.toString()}")
+        cb(resp) },
         ) {}
         queue.add(req)
     } // login end
 
 
 
-    // Login Request
-    fun signUp(ctx: Context, myemail:String, mypassword:String, cb: (Resp_Login)->Unit  ){
+    // Signup Request
+    fun signUp(ctx: Context, myname:String, myemail:String, mypassword:String, cb: (Resp_Hello)->Unit  ){
         // if localmode
         if (localMode) {
             log("signUp LOCAL MODE")
-            cb(Resp_Login(BErr.Ok,true,"Local signUp"))
+            cb(Resp_Hello(BErr.Ok,"Ok"))
             return }
 
         // state request
-        val url = "$prefix/v1/user_service.UserService/SignUp"
+        val url = "$prefix/v1/register"
         val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
-        val jsonBody = JSONObject("{\"email\":\"$myemail\",\"password\":\"$mypassword\"}")
+        val jsonBody = JSONObject("{\"Name\":\"$myname\",\"UserType\":\"Patient\",\"RegType\":\"Email\",\"RegisterWith\":\"$myemail\",\"Password\":\"$mypassword\"}")
+        log("url $url")
 
         // handle response
         val req = object : JsonObjectRequest(
             Method.POST, url, jsonBody,
             Response.Listener { response ->
-                var message = "Ok"
-                var uid = "SHITFUCKDANI"
-                var id_token = "SHITFUCKDANI"
-                try { uid = response.getString("uid") } catch (e:Exception) {}
-                try { message = response.getString("message") } catch (e:Exception) {}
-                try { id_token = response.getString("idToken") } catch (e: Exception) {}
-                log(response.toString())
-                log("signup Success ${uid}, ${message}, ${id_token}")
+                val res = response.getString("Result")
+                log("signup Success $res")
 
-                if (message == "User ${myemail} created successfully.") { // dani did not implement a system that returns meaningful return messages (such as a success boolean/error code) so I match on user created successfully message
-                    cb(Resp_Login(BErr.Ok,true, message))
-                } else { cb(Resp_Login(BErr.Ok,false, message)) }
-               },
+                if (res == "Ok") {
+                    cb(Resp_Hello(BErr.Ok,res))
+                } else { cb(Resp_Hello(BErr.Exception,res)) }
+            },
 
 
             Response.ErrorListener { error ->
-                var resp = Resp_Login(BErr.Exception,false,error.toString())
+                var resp = Resp_Hello(BErr.Exception,error.toString())
                 log("signup Error")
 
-                // auth error // 404 if auth failure (f u dani)
-                if (error.networkResponse.statusCode == 401 ) {
-                    cb(Resp_Login(BErr.Ok,false,"SHOULD NOT EVERY HAPPEN Invalid Signup"))
-
-                    // other error
-                } else {
-                    // check if network issue
-                    if (error.cause != null){
-                        try { throw (error.cause as Throwable) }
-                        catch (e: ConnectException){
-                            resp = Resp_Login(BErr.Not_Signed_In,false,error.toString())
-                            log("    NoConnectionError")
-                            log("    ${e}")
-                        }
-                        catch(e: Exception) { log("    Other Exception"); log(e.toString())}
-                    } else { log("    else auth") }
-                    log( "    localizedMessage: ${error.localizedMessage}")
-                    log( "    toString ${error.toString()}")
-                    cb(resp) } },
+                // check if network issue
+                if (error.cause != null){
+                    try { throw (error.cause as Throwable) }
+                    catch (e: ConnectException){
+                        resp = Resp_Hello(BErr.Not_Signed_In,error.toString())
+                        log("    NoConnectionError")
+                        log("    $e")
+                    }
+                    catch(e: Exception) { log("    Other Exception"); log(e.toString())}
+                } else { log("    else auth") }
+                log( "    localizedMessage: ${error.localizedMessage}")
+                log( "    toString ${error.toString()}")
+                cb(resp) },
         ) {}
         queue.add(req)
-    } // login end
+    } // Signup end
 
 
 
@@ -334,6 +308,68 @@ object backend {
 		}
     } // request_risk end
 
+    // Data Request
+    fun request_data(ctx: Context, cb: (Resp_Patient)->Unit ){
+        // if localmode
+        if (localMode) {
+            log("Request_data LOCAL MODE")
+            cb(Resp_Patient(BErr.Ok,dummyPatient))
+            return }
+
+        // state request
+        val url = "$prefix/v1/patient_info"
+        val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
+        val jsonBody = JSONObject("{\"UserID\":\"$backend_uid\"}")
+
+        // handle response
+        val req = object : JsonObjectRequest(
+            Method.POST, url, jsonBody,
+            Response.Listener { response ->
+                val res = response.getString("Result")
+                val name = response.getString("Name")
+                val hasDementia = response.getString("HasDementia")
+                val doctorId = response.getString("DoctorID")
+                val riskScore = response.getString("RiskScore")
+
+                val dementia = when(hasDementia){
+                    "Unknown" -> DementiaEnum.Unknown
+                    "Positive" -> DementiaEnum.Positive
+                    "Negative" -> DementiaEnum.Negative
+                    else -> null
+                }
+
+                log("Request_data $res")
+                if (res == "Ok" && dementia != null ) {
+                    val patient = PatientInfo(
+                        Name = name,
+                        HasDementia = dementia,
+                        DoctorID = if (doctorId == "") null else doctorId,
+                        RiskScore = if (riskScore == "") null else riskScore,
+                    )
+                    cb(Resp_Patient(BErr.Ok, patient))
+                } else {
+                    cb(Resp_Patient(BErr.Exception, dummyPatient))
+                } },
+
+            Response.ErrorListener { error ->
+                var resp = Resp_Patient(BErr.Exception,dummyPatient)
+                log("Request_data Error")
+
+                // check if network issue
+                if (error.cause != null){
+                    try { throw (error.cause as Throwable) }
+                    catch (e: ConnectException){
+                        resp = Resp_Patient(BErr.Not_Signed_In,dummyPatient)
+                        log("    NoConnectionError")
+                    }
+                    catch(e: Exception) { log("    Other Exception")}
+                }
+                log( "    localizedMessage: ${error.localizedMessage}")
+                log( "    toString ${error.toString()}")
+                cb(resp) },
+        ) {}
+        queue.add(req)
+    } // request_data end
 
 
 
@@ -385,6 +421,8 @@ object backend {
 
 
 
+
+
     // Send Healtcare
     fun send_lifestyle(ctx: Context, data: LifestyleData, cb: (BErr)->Unit  ){
         try {
@@ -394,7 +432,9 @@ object backend {
                 cb(BErr.Ok)
                 return
             }
-			// TODO checked logged in
+
+            // check signed in
+            if (backend_uid == null) { cb(BErr.Not_Signed_In)}
 
             // state request
             val url = "$prefix/v1/send_lifestyle"
@@ -548,7 +588,7 @@ object backend {
         NutrientDiet = NutritionDiet.LowCarb,
         SleepQuality = SleepQuality.Poor,
         ChronicHealthConditions = ChronicHealthConditions.Diabetes
-    )
+    ) // send lifestyle end
 
 
 
