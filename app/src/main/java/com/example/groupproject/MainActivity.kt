@@ -504,7 +504,7 @@ fun HomeScreen(uvm: UserViewModel) {
                 val username by uvm.username.collectAsState()
                 SectionCard(title = "") {
                     Text(
-                        text = "Welcome ${if (username.isNotBlank()) username else "User"}",
+                        text = "Welcome,\n ${if (username.isNotBlank()) username else "User"}",
                         style = MaterialTheme.typography.headlineLarge,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -1985,7 +1985,7 @@ fun SignUpScreen(navController: NavController) {
             SectionCard(title = "Actions") {
                 Button(
                     onClick = {
-                        backend.signUp(cont, email, email,password) { x ->
+                        backend.signUp(cont, name, email,password) { x ->
                             when (x.err) {
                                 BErr.Ok -> {
                                     navController.navigate(Screen.Login.route)
