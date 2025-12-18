@@ -427,7 +427,7 @@ class UserViewModel: ViewModel() {
     var username: StateFlow<String> = _username.asStateFlow()
 
     fun setUsername(name: String) {
-        _username.value = name
+        _username.update{ name }
     }
 
     private val _latestAudioRecording =
@@ -1440,6 +1440,7 @@ private fun SectionCard(
 
 @Composable
 fun AudioRecordingScreen(uvm: UserViewModel) {
+    val cont = LocalContext.current
 
     val images = listOf(
         R.drawable.dummy_image
@@ -1464,6 +1465,12 @@ fun AudioRecordingScreen(uvm: UserViewModel) {
                 else
                     "$finalTranscript $final"
                 partialTranscript = ""
+                Log.i("BACKEND",finalTranscript)
+                backend.send_transcription(cont, finalTranscript){ resp -> when(resp.err) {
+                    BErr.Ok -> TODO()
+                    BErr.Not_Signed_In -> TODO()
+                    BErr.Exception -> TODO()
+                } }
             },
             onPartialText = { partial ->
                 partialTranscript = partial

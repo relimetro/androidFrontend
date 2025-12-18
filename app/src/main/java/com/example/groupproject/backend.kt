@@ -81,6 +81,7 @@ enum class BErr{
     Exception, // error that is not expected to happen : network exception or some server error, user not authorized etc
 }
 
+
 data class Resp_Hello(
     val err: BErr,
     val message: String,
@@ -89,6 +90,11 @@ data class Resp_Hello(
 data class Resp_Patient(
     val err: BErr,
     val message: PatientInfo,
+)
+
+data class Resp_test(
+    val err: BErr,
+    val result: String,
 )
 
 
@@ -422,19 +428,61 @@ object backend {
 
 
 
+    fun send_transcription(ctx: Context, transcript:String, cb: (Resp_test)->Unit  ){
+        // if localmode
+        if (localMode) {
+            log("Send_transcription LOCAL MODE")
+            cb(Resp_test(BErr.Ok,"0.5"))
+            return }
+
+
+        if (backend_uid == null) { cb(Resp_test(BErr.Not_Signed_In, "NaN"))}
+        else {
+            // state request
+            val url = "$prefix/v1/send_transcript"
+            val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
+            val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"Transcript\":\"$transcript\"}")
+
+            val req = object : JsonObjectRequest(
+                Method.POST, url, jsonBody,
+                Response.Listener { response ->
+                    val resp = Resp_test(BErr.Ok,response.getString("Result"))
+                    log("send transcript Success ${resp.result}")
+                    cb(resp) },
+
+                Response.ErrorListener { error ->
+                    var resp = Resp_test(BErr.Exception,error.toString())
+                    log("send transcript Error")
+
+                    // check if network issue
+                    if (error.cause != null){
+                        try { throw (error.cause as Throwable) }
+                        catch (e: ConnectException){
+                            resp = Resp_test(BErr.Not_Signed_In,error.toString())
+                            log("    NoConnectionError")
+                        }
+                        catch(e: Exception) { log("    Other Exception")}
+                    }
+                    log( "    localizedMessage: ${error.localizedMessage}")
+                    log( "    toString ${error.toString()}")
+                    cb(resp) },
+            ) {}
+            queue.add(req)
+        }
+    } // request_risk end
 
     // Send Healtcare
-    fun send_lifestyle(ctx: Context, data: LifestyleData, cb: (BErr)->Unit  ){
+    fun send_lifestyle(ctx: Context, data: LifestyleData, cb: (Resp_test)->Unit  ){
         try {
             // if localmode
             if (localMode) {
                 log("send_lifestyle LOCAL MODE")
-                cb(BErr.Ok)
+                cb(Resp_test(BErr.Ok,"0.5"))
                 return
             }
 
             // check signed in
-            if (backend_uid == null) { cb(BErr.Not_Signed_In)}
+            if (backend_uid == null) { cb(Resp_test(BErr.Not_Signed_In,""))}
 
             // state request
             val url = "$prefix/v1/send_lifestyle"
@@ -540,7 +588,7 @@ object backend {
             // handle response
             val req = object : JsonObjectRequest(
                 Method.POST, url, jsonBody,
-                Response.Listener { response -> cb(BErr.Ok) }, // response has "success" boolean
+                Response.Listener { response -> cb(Resp_test(BErr.Ok,"0.5")) }, // response has "success" boolean //TODO actuay return test result
 
                 Response.ErrorListener { error ->
                     var resp = BErr.Exception
@@ -559,7 +607,7 @@ object backend {
                     }
                     log("    localizedMessage: ${error.localizedMessage}")
                     log("    toString ${error.toString()}")
-                    cb(resp)
+                    cb(Resp_test(resp,""))
                 },
             ) {}
             queue.add(req)
