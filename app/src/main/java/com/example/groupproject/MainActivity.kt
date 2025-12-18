@@ -1215,16 +1215,13 @@ fun LoginScreen(
                         backend.login(c, email, password) { x ->
                             when (x.err) {
                                 BErr.Ok -> {
-                                    if (x.success) {
-                                        uvm.onLoginSuccess(email) // or username
-                                        navController.navigate(Screen.Home.route) {
-                                            popUpTo(Screen.Login.route) { inclusive = true }
-                                        }
+                                    uvm.onLoginSuccess(email) // or username
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(Screen.Login.route) { inclusive = true }
                                     }
                                 }
-                                else -> {
-                                    // Optional: show error message
-                                }
+                                BErr.Not_Signed_In -> Toast.makeText( c, "Cannot Connect To Backend", Toast.LENGTH_SHORT ).show()
+                                BErr.Exception -> Toast.makeText( c, "Error", Toast.LENGTH_SHORT ).show()
                             }
                         }
                     },
@@ -1396,15 +1393,9 @@ fun SignUpScreen(navController: NavController) {
             SectionCard(title = "Actions") {
                 Button(
                     onClick = {
-                        backend.signUp(cont, email, password) { x ->
+                        backend.signUp(cont, email, email,password) { x ->
                             when (x.err) {
-                                BErr.Ok -> {
-                                    backend.initUser(cont)
-                                    backend.addUserDetail(cont, "Name",name)
-                                    backend.addUserDetail(cont, "Email",email)
-                                    backend.addUserDetail(cont, "testPassword",password)
-                                    navController.navigate(Screen.Login.route)
-                                }
+                                BErr.Ok -> navController.navigate(Screen.Login.route)
                                 BErr.Not_Signed_In -> Toast.makeText( cont, "Cannot Connect To Backend", Toast.LENGTH_SHORT ).show()
                                 BErr.Exception -> Toast.makeText( cont, "Exception, see logs", Toast.LENGTH_SHORT ).show()
                             } }
