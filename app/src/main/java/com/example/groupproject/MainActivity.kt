@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -105,6 +106,23 @@ import java.time.LocalDateTime
 import java.time.format.TextStyle
 import java.util.Locale
 import java.security.KeyStore
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import java.io.File
+import android.content.Intent
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 
 
 sealed class Screen(val route: String) {
@@ -114,6 +132,7 @@ sealed class Screen(val route: String) {
     object Signup : Screen("signup")
     object QuestionnaireSelect: Screen("questionnaireSelect")
     object QuestionnaireC : Screen("questionnaireC")
+    object AudioRecording : Screen("audioRecording")
     object Notification : Screen("notifications")
 }
 
@@ -288,6 +307,86 @@ class MmseViewModel : ViewModel() {
     }
 }
 
+class SpeechToTextHelper(
+    private val context: Context,
+    private val onFinalText: (String) -> Unit,
+    private val onPartialText: (String) -> Unit = {}
+) {
+
+    private var recognizer: SpeechRecognizer? = null
+    private var shouldKeepListening = false
+
+    fun start() {
+        shouldKeepListening = true
+        startListening()
+    }
+
+    fun stop() {
+        shouldKeepListening = false
+        recognizer?.stopListening()
+    }
+
+    private fun startListening() {
+        if (!SpeechRecognizer.isRecognitionAvailable(context)) return
+
+        recognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+            setRecognitionListener(object : RecognitionListener {
+
+                override fun onPartialResults(results: Bundle?) {
+                    results
+                        ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        ?.firstOrNull()
+                        ?.let { onPartialText(it) }
+                }
+
+                override fun onResults(results: Bundle?) {
+                    results
+                        ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        ?.firstOrNull()
+                        ?.let { onFinalText(it) }
+
+                    if (shouldKeepListening) restart()
+                }
+
+                override fun onError(error: Int) {
+                    if (shouldKeepListening) restart()
+                }
+
+                override fun onEndOfSpeech() {}
+                override fun onReadyForSpeech(params: Bundle?) {}
+                override fun onBeginningOfSpeech() {}
+                override fun onRmsChanged(rmsdB: Float) {}
+                override fun onBufferReceived(buffer: ByteArray?) {}
+                override fun onEvent(eventType: Int, params: Bundle?) {}
+            })
+        }
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        }
+
+        recognizer?.startListening(intent)
+    }
+
+    private fun restart() {
+        recognizer?.destroy()
+        recognizer = null
+        startListening()
+    }
+
+    fun destroy() {
+        shouldKeepListening = false
+        recognizer?.destroy()
+        recognizer = null
+    }
+}
+
+
 
 
 class MainActivity : ComponentActivity() {
@@ -315,12 +414,23 @@ data class RiskResult(
     val calculatedAt: LocalDateTime
 )
 
+data class AudioRecordingResult(
+    val transcription: String,
+    val recordedAt: LocalDateTime
+)
+
 class UserViewModel: ViewModel() {
     private val _latestRisk = MutableStateFlow<RiskResult?>(null)
     val latestRisk: StateFlow<RiskResult?> = _latestRisk.asStateFlow()
     var _username = MutableStateFlow("Conor") // private, screens read using indes (not _index) and write using provided methods
     var username: StateFlow<String> = _username.asStateFlow()
-    var isLoggedIn by mutableStateOf(true)
+
+    private val _latestAudioRecording =
+        MutableStateFlow<AudioRecordingResult?>(null)
+
+    val latestAudioRecording: StateFlow<AudioRecordingResult?> =
+        _latestAudioRecording.asStateFlow()
+    var isLoggedIn by mutableStateOf(false)
             private set
     fun onLoginSuccess() {
         isLoggedIn = true
@@ -338,6 +448,13 @@ class UserViewModel: ViewModel() {
     fun onLoginSuccess(name: String) {
         _username.value = name
         isLoggedIn = true
+    }
+
+    fun saveAudioRecording(transcription: String) {
+        _latestAudioRecording.value = AudioRecordingResult(
+            transcription = transcription,
+            recordedAt = java.time.LocalDateTime.now()
+        )
     }
 
 }
@@ -392,8 +509,6 @@ fun HomeScreen(uvm: UserViewModel) {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(40.dp))
-
                 SectionCard(title = "Risk Score") {
                     val ctx = LocalContext.current
                     val latestRisk by uvm.latestRisk.collectAsState()
@@ -435,10 +550,18 @@ fun HomeScreen(uvm: UserViewModel) {
                     var myNews by rememberSaveable { mutableStateOf("No news loaded") }
                     val ctx = LocalContext.current
 
-                    Text(
-                        text = myNews,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 400.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = myNews,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
 
                     Button(
                         onClick = {
@@ -448,7 +571,8 @@ fun HomeScreen(uvm: UserViewModel) {
                                     else -> myNews = "Unable to load news"
                                 }
                             }
-                        }
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Get News")
                     }
@@ -467,7 +591,6 @@ fun QuestionnaireSelect(navController: NavController) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-
         PageBanner(title = "Questionnaire Select")
 
         Column(
@@ -476,62 +599,63 @@ fun QuestionnaireSelect(navController: NavController) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
+
+            SectionCard(title = "Lifestyle Questionnaire") {
+                Text(
+                    text = "General health and lifestyle information",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
                         navController.navigate(Screen.Settings.route)
                     },
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "Lifestyle Questionnaire",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "General health and lifestyle questionnaire",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Text("Start")
                 }
             }
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
+            SectionCard(title = "Mini Mental State Exam") {
+                Text(
+                    text = "Cognitive screening assessment",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
                         navController.navigate(Screen.QuestionnaireC.route)
                     },
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "Mini Mental State Exam",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Cognitive screening assessment",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Text("Start")
+                }
+            }
+            SectionCard(title = "Audio Recording") {
+                Text(
+                    text = "Record spoken responses",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
+                        navController.navigate(Screen.AudioRecording.route)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Start")
                 }
             }
         }
     }
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuestionScreen( modifier: Modifier = Modifier) {
@@ -1082,11 +1206,139 @@ private fun SectionCard(
     }
 }
 
+
+@Composable
+fun AudioRecordingScreen(uvm: UserViewModel) {
+
+    val images = listOf(
+        R.drawable.dummy_image
+    )
+
+// Pick once per screen entry
+    val randomImage = remember {
+        images.random()
+    }
+    val context = LocalContext.current
+
+    var isListening by remember { mutableStateOf(false) }
+    var finalTranscript by rememberSaveable { mutableStateOf("") }
+    var partialTranscript by remember { mutableStateOf("") }
+
+    val speechHelper = remember {
+        SpeechToTextHelper(
+            context = context,
+            onFinalText = { final ->
+                finalTranscript = if (finalTranscript.isBlank())
+                    final
+                else
+                    "$finalTranscript $final"
+                partialTranscript = ""
+            },
+            onPartialText = { partial ->
+                partialTranscript = partial
+            }
+        )
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { speechHelper.destroy() }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            speechHelper.start()
+            isListening = true
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+
+        PageBanner(title = "Audio Recording")
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+
+            SectionCard(title = "Audio Prompt") {
+                Image(
+                    painter = painterResource(id = randomImage),
+                    contentDescription = "Audio recording illustration",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
+            SectionCard(title = "Recording Controls") {
+                Button(
+                    onClick = {
+                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    },
+                    enabled = !isListening,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Start Recording")
+                }
+
+                Button(
+                    onClick = {
+                        speechHelper.stop()
+                        isListening = false
+                    },
+                    enabled = isListening,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Stop Recording")
+                }
+            }
+
+            SectionCard(title = "Transcription") {
+                val displayText =
+                    if (finalTranscript.isBlank() && partialTranscript.isBlank())
+                        "Spoken text will appear here."
+                    else
+                        "$finalTranscript ${partialTranscript}"
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 200.dp, max = 400.dp) // ⬅️ larger box
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+
+                    Text(
+                        text = displayText.trim(),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun NotificationScreen(Cvm: MmseViewModel, uvm: UserViewModel) {
     val modifier = Modifier
+    val latestRisk by uvm.latestRisk.collectAsState()
     val latestMmse by Cvm.latestResult.collectAsState()
+    val latestAudio by uvm.latestAudioRecording.collectAsState()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1101,7 +1353,6 @@ fun NotificationScreen(Cvm: MmseViewModel, uvm: UserViewModel) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            val latestRisk by uvm.latestRisk.collectAsState()
 
             SectionCard(title = "Latest Risk Score") {
                 if (latestRisk == null) {
@@ -1138,6 +1389,31 @@ fun NotificationScreen(Cvm: MmseViewModel, uvm: UserViewModel) {
                     )
                 }
             }
+
+            SectionCard(title = "Latest Audio Recording") {
+                if (latestAudio == null) {
+                    Text("No audio recordings available yet.")
+                } else {
+                    Text(
+                        text = "Recorded on: ${
+                            latestAudio!!.recordedAt.format(
+                                java.time.format.DateTimeFormatter.ofPattern(
+                                    "dd MMM yyyy, HH:mm"
+                                )
+                            )
+                        }",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = latestAudio!!.transcription,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
             SectionCard(title = "Information") {
                 Text(
                     text = "This is where notifications about your diagnosis or assessments will appear.",
@@ -1269,11 +1545,24 @@ fun SignUpScreen(navController: NavController) {
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
+    val isPasswordStrong = isPasswordValid(password, confirmPassword)
+
+    val hasMinLength = password.length >= 8
+    val hasNumber = password.any { it.isDigit() }
+    val hasUppercase = password.any { it.isUpperCase() }
+    val hasLowercase = password.any { it.isLowerCase() }
+    val passwordsMatch = password == confirmPassword && password.isNotBlank()
+    val showRequirements =
+        !hasMinLength ||
+        !hasNumber ||
+        !hasUppercase ||
+        !hasLowercase ||
+        !passwordsMatch
+
     val isValid = name.isNotBlank() &&
             Patterns.EMAIL_ADDRESS.matcher(email).matches() &&
             doctor.isNotBlank() &&
-            password.length >= 6 &&
-            password == confirmPassword
+            isPasswordStrong
 
     Column(
         modifier = Modifier
@@ -1292,7 +1581,18 @@ fun SignUpScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
 
-            Spacer(modifier = Modifier.height(40.dp))
+            SectionCard(title = "Sign-Up Requirements") {
+                Text("• Full name is required")
+                Text("• A valid email address must be used")
+                Text("• A doctor must be selected")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Password requirements:")
+                Text("• At least 8 characters long")
+                Text("• Includes at least 1 number")
+                Text("• Includes at least 1 uppercase letter")
+                Text("• Includes at least 1 lowercase letter")
+                Text("• Password and confirmation must match")
+            }
 
             SectionCard(title = "Account Details") {
 
@@ -1368,6 +1668,55 @@ fun SignUpScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                AnimatedVisibility(
+                    visible = showRequirements,
+                    enter = fadeIn() + slideInVertically(),
+                    exit = fadeOut() + slideOutVertically()
+                ) {
+                    SectionCard(title = "Password Requirements") {
+
+                        AnimatedVisibility(
+                            visible = !hasMinLength,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            Text("• At least 8 characters long")
+                        }
+
+                        AnimatedVisibility(
+                            visible = !hasNumber,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            Text("• Must include a number")
+                        }
+
+                        AnimatedVisibility(
+                            visible = !hasUppercase,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            Text("• Must include an uppercase letter")
+                        }
+
+                        AnimatedVisibility(
+                            visible = !hasLowercase,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            Text("• Must include a lowercase letter")
+                        }
+
+                        AnimatedVisibility(
+                            visible = !passwordsMatch,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            Text("• Passwords must match")
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
@@ -1425,6 +1774,20 @@ fun SignUpScreen(navController: NavController) {
             }
         }
     }
+}
+
+fun isPasswordValid(password: String, confirmPassword: String): Boolean {
+    val hasMinLength = password.length >= 8
+    val hasNumber = password.any { it.isDigit() }
+    val hasUppercase = password.any { it.isUpperCase() }
+    val hasLowercase = password.any { it.isLowerCase() }
+    val passwordsMatch = password == confirmPassword
+
+    return hasMinLength &&
+            hasNumber &&
+            hasUppercase &&
+            hasLowercase &&
+            passwordsMatch
 }
 
 
@@ -1495,6 +1858,7 @@ fun Mainfunction(uvm: UserViewModel, Cvm: MmseViewModel) {
             composable(Screen.Notification.route) { NotificationScreen(Cvm, uvm) }
             composable(Screen.Login.route) { LoginScreen(navController, uvm) }
             composable(Screen.Signup.route) { SignUpScreen(navController) }
+            composable(Screen.AudioRecording.route) { AudioRecordingScreen(uvm) }
         }
     }
 }
