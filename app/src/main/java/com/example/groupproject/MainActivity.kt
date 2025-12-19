@@ -430,11 +430,11 @@ class UserViewModel: ViewModel() {
         _username.update{ name }
     }
 
-    private val _latestAudioRecording =
+    private val _latestAudioResults =
         MutableStateFlow<AudioRecordingResult?>(null)
 
-    val latestAudioRecording: StateFlow<AudioRecordingResult?> =
-        _latestAudioRecording.asStateFlow()
+    val latestAudioResults: StateFlow<AudioRecordingResult?> =
+        _latestAudioResults.asStateFlow()
     var isLoggedIn by mutableStateOf(false)
             private set
     fun onLoginSuccess() {
@@ -455,10 +455,10 @@ class UserViewModel: ViewModel() {
         isLoggedIn = true
     }
 
-    fun saveAudioRecording(transcription: String) {
-        _latestAudioRecording.value = AudioRecordingResult(
+    fun saveAudioResults(transcription: String) {
+        _latestAudioResults.value = AudioRecordingResult(
             transcription = transcription,
-            recordedAt = java.time.LocalDateTime.now()
+            recordedAt = LocalDateTime.now()
         )
     }
 
@@ -484,7 +484,6 @@ fun PageBanner(title: String) {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeScreen(uvm: UserViewModel) {
-    val username by uvm.username.collectAsState()
 
     Box(
         modifier = Modifier
@@ -1399,13 +1398,42 @@ fun QuestionnaireScreenC(Cvm: MmseViewModel){
             )
         }
             SectionCard(title = "Finish Assessment") {
+                val ctx = LocalContext.current
+
                 Button(
-                    onClick = { Cvm.saveMmseResult() },
+                    onClick = {
+                        // 1️⃣ Save locally (existing functionality)
+                        Cvm.saveMmseResult()
+
+                        // 2️⃣ Prepare backend payload
+                        val mmseData = "MMSE Score: $score / 22"
+                        val timeDate = LocalDateTime.now().toString()
+
+                        // 3️⃣ Send to backend
+                        backend.send_minimental(
+                            ctx = ctx,
+                            data = mmseData,
+                            timeDate = timeDate
+                        ) { err ->
+                            when (err) {
+                                BErr.Ok -> {
+                                    Log.i("BACKEND", "MMSE sent successfully")
+                                }
+                                BErr.Not_Signed_In -> {
+                                    Log.e("BACKEND", "User not signed in")
+                                }
+                                BErr.Exception -> {
+                                    Log.e("BACKEND", "Failed to send MMSE")
+                                }
+                            }
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Save MMSE Result")
                 }
             }
+
 
         }
     }
@@ -1466,11 +1494,6 @@ fun AudioRecordingScreen(uvm: UserViewModel) {
                     "$finalTranscript $final"
                 partialTranscript = ""
                 Log.i("BACKEND",finalTranscript)
-                backend.send_transcription(cont, finalTranscript){ resp -> when(resp.err) {
-                    BErr.Ok -> TODO()
-                    BErr.Not_Signed_In -> TODO()
-                    BErr.Exception -> TODO()
-                } }
             },
             onPartialText = { partial ->
                 partialTranscript = partial
@@ -1494,7 +1517,8 @@ fun AudioRecordingScreen(uvm: UserViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
 
         PageBanner(title = "Audio Recording")
@@ -1502,7 +1526,8 @@ fun AudioRecordingScreen(uvm: UserViewModel) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
 
@@ -1549,7 +1574,7 @@ fun AudioRecordingScreen(uvm: UserViewModel) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 200.dp, max = 400.dp) // ⬅️ larger box
+                        .heightIn(min = 200.dp, max = 400.dp)
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -1558,6 +1583,34 @@ fun AudioRecordingScreen(uvm: UserViewModel) {
                         text = displayText.trim(),
                         style = MaterialTheme.typography.bodyMedium
                     )
+                }
+            }
+            SectionCard(title = "Submit Transcription") {
+
+                Button(
+                    onClick = {
+                        backend.send_transcription(
+                            cont,
+                            finalTranscript.trim()
+                        ) { resp ->
+                            when (resp.err) {
+                                BErr.Ok -> {
+                                    Log.i("BACKEND", "Transcription submitted successfully")
+                                    uvm.saveAudioResults(resp.result)
+                                }
+                                BErr.Not_Signed_In -> {
+                                    Log.e("BACKEND", "User not signed in")
+                                }
+                                BErr.Exception -> {
+                                    Log.e("BACKEND", "Failed to submit transcription")
+                                }
+                            }
+                        }
+                    },
+                    enabled = finalTranscript.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Submit Transcription")
                 }
             }
         }
@@ -1576,7 +1629,7 @@ fun NotificationScreen(Cvm: MmseViewModel, uvm: UserViewModel) {
     val modifier = Modifier
     val latestRisk by uvm.latestRisk.collectAsState()
     val latestMmse by Cvm.latestResult.collectAsState()
-    val latestAudio by uvm.latestAudioRecording.collectAsState()
+    val latestAudio by uvm.latestAudioResults.collectAsState()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1633,7 +1686,7 @@ fun NotificationScreen(Cvm: MmseViewModel, uvm: UserViewModel) {
                     Text("No audio recordings available yet.")
                 } else {
                     Text(
-                        text = "Recorded on: ${
+                        text = "Calculated on: ${
                             latestAudio!!.recordedAt.format(
                                 java.time.format.DateTimeFormatter.ofPattern(
                                     "dd MMM yyyy, HH:mm"
