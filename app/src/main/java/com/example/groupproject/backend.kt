@@ -314,6 +314,8 @@ object backend {
 		}
     } // request_risk end
 
+
+
     // Data Request
     fun request_data(ctx: Context, cb: (Resp_Patient)->Unit ){
         // if localmode
@@ -446,9 +448,14 @@ object backend {
             val req = object : JsonObjectRequest(
                 Method.POST, url, jsonBody,
                 Response.Listener { response ->
-                    val resp = Resp_test(BErr.Ok,response.getString("Result"))
-                    log("send transcript Success ${resp.result}")
-                    cb(resp) },
+                    val resp = response.getString("Result")
+					val score = response.getString("RiskScore")
+                    log("send transcript Success $resp, $score")
+					if resp == "Ok" {
+						cb(Resp_test(BErr.Ok,score))
+					} else {
+						cb(Resp_test(BErr.Exception,"NaN"))
+				},
 
                 Response.ErrorListener { error ->
                     var resp = Resp_test(BErr.Exception,error.toString())
@@ -484,7 +491,7 @@ object backend {
             // state request
             val url = "$prefix/v1/send_minimental"
             val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
-            val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"data\":\"$data\",\"$timeDate\":\"$timeDate\"}")
+            val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"data\":\"$data\",\"timeDate\":\"$timeDate\"}")
 
             val req = object : JsonObjectRequest(
                 Method.POST, url, jsonBody,
@@ -515,7 +522,7 @@ object backend {
     } // send_minimental end
 
     // Send Healtcare
-    fun send_lifestyle(ctx: Context, data: LifestyleData, cb: (Resp_test)->Unit  ){
+    fun send_lifestyle(ctx: Context, data: LifestyleData, timeDate:String, cb: (Resp_test)->Unit  ){
         try {
             // if localmode
             if (localMode) {
@@ -632,7 +639,15 @@ object backend {
             // handle response
             val req = object : JsonObjectRequest(
                 Method.POST, url, jsonBody,
-                Response.Listener { response -> cb(Resp_test(BErr.Ok,"0.5")) }, // response has "success" boolean //TODO actuay return test result
+                Response.Listener { response ->
+                    val resp = response.getString("Result")
+					val score = response.getString("RiskScore")
+                    log("send lifestyle Success $resp, $score")
+					if resp == "Ok" {
+						cb(Resp_test(BErr.Ok,score))
+					} else {
+						cb(Resp_test(BErr.Exception,"NaN"))
+				},
 
                 Response.ErrorListener { error ->
                     var resp = BErr.Exception
