@@ -603,7 +603,7 @@ object backend {
 
 
             val str =
-                "Diabetic:${trueFalse(data.Diabetic)},AlcoholLevel:${data.AlcoholLevel}, HeartRate:${data.HeartRate}, BloodOxygenLevel:${data.BloodOxygenLevel}, BodyTemperature:${data.BodyTemperature}, Weight${data.Weight}, MRI_Delay:${data.MRI_Delay}, Prescription:${PrescriptionStr}, DosageMg:${DosageStr}, Age:${data.Age}, EducationLevel:${eduLevelStr(data.EducationLevel)
+                "Diabetic:${trueFalse(data.Diabetic)},AlcoholLevel:${data.AlcoholLevel}, HeartRate:${data.HeartRate}, BloodOxygenLevel:${data.BloodOxygenLevel}, BodyTemperature:${data.BodyTemperature}, Weight:${data.Weight}, MRI_Delay:${data.MRI_Delay}, Prescription:${PrescriptionStr}, DosageMg:${DosageStr}, Age:${data.Age}, EducationLevel:${eduLevelStr(data.EducationLevel)
                 }, DominantHand:${DomHandStr(data.DominantHand)}, Gender:${GenderStr(data.Gender)}, FamilyHistory:${
                     trueFalse(
                         data.FamilyHistory
@@ -626,6 +626,7 @@ object backend {
 
             // val jsonBody = JSONObject("{\"UserID\":\"$str\"}")
              val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"data\":\"$str\"}")
+            log(jsonBody.toString())
 
 
             // handle response
