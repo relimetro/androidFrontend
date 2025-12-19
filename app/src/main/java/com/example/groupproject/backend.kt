@@ -441,7 +441,7 @@ object backend {
             // state request
             val url = "$prefix/v1/send_transcript"
             val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
-            val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"Transcript\":\"$transcript\"}")
+            val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"data\":\"$transcript\"}")
 
             val req = object : JsonObjectRequest(
                 Method.POST, url, jsonBody,
@@ -469,7 +469,50 @@ object backend {
             ) {}
             queue.add(req)
         }
-    } // request_risk end
+    } // send_transcription end
+
+    fun send_minimental(ctx: Context, data:String, timeDate:String, cb: (BErr)->Unit  ){
+        // if localmode
+        if (localMode) {
+            log("send_minimental LOCAL MODE")
+            cb(BErr.Ok)
+            return }
+
+
+        if (backend_uid == null) { cb(BErr.Not_Signed_In)}
+        else {
+            // state request
+            val url = "$prefix/v1/send_minimental"
+            val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
+            val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"data\":\"$data\",\"$timeDate\":\"$timeDate\"}")
+
+            val req = object : JsonObjectRequest(
+                Method.POST, url, jsonBody,
+                Response.Listener { response ->
+                    val resp = BErr.Ok
+                    log("send minimental Success")
+                    cb(resp)},
+
+                Response.ErrorListener { error ->
+                    var resp = BErr.Exception
+                    log("send minimental Error")
+
+                    // check if network issue
+                    if (error.cause != null){
+                        try { throw (error.cause as Throwable) }
+                        catch (e: ConnectException){
+                            resp = BErr.Not_Signed_In
+                            log("    NoConnectionError")
+                        }
+                        catch(e: Exception) { log("    Other Exception")}
+                    }
+                    log( "    localizedMessage: ${error.localizedMessage}")
+                    log( "    toString ${error.toString()}")
+                    cb(resp) },
+            ) {}
+            queue.add(req)
+        }
+    } // send_minimental end
 
     // Send Healtcare
     fun send_lifestyle(ctx: Context, data: LifestyleData, cb: (Resp_test)->Unit  ){
