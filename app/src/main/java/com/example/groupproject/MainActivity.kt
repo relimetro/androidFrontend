@@ -1237,7 +1237,8 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
                         )
                         backend.send_lifestyle(
                             ctx,
-                            patientData
+                            patientData,
+                            "2025-02-12"
                         ) { resp -> // anonymous function is called when backend responds
                             Log.i("CONOR", resp.toString())
                         }

@@ -451,10 +451,10 @@ object backend {
                     val resp = response.getString("Result")
 					val score = response.getString("RiskScore")
                     log("send transcript Success $resp, $score")
-					if resp == "Ok" {
+					if (resp == "Ok") {
 						cb(Resp_test(BErr.Ok,score))
 					} else {
-						cb(Resp_test(BErr.Exception,"NaN"))
+						cb(Resp_test(BErr.Exception,"NaN")) }
 				},
 
                 Response.ErrorListener { error ->
@@ -643,10 +643,10 @@ object backend {
                     val resp = response.getString("Result")
 					val score = response.getString("RiskScore")
                     log("send lifestyle Success $resp, $score")
-					if resp == "Ok" {
+					if (resp == "Ok") {
 						cb(Resp_test(BErr.Ok,score))
 					} else {
-						cb(Resp_test(BErr.Exception,"NaN"))
+						cb(Resp_test(BErr.Exception,"NaN")) }
 				},
 
                 Response.ErrorListener { error ->
