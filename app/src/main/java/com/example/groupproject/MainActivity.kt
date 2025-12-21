@@ -663,7 +663,8 @@ fun QuestionnaireSelect(navController: NavController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuestionScreen( modifier: Modifier = Modifier) {
+fun QuestionScreen(uvm: UserViewModel) {
+    val modifier = Modifier
     var testHttp: String by remember { mutableStateOf("") } // sample variable to show output to UI
     val ctx = LocalContext.current // need to pass "context" as argument when calling request
     var testIP by rememberSaveable { mutableStateOf(value = "localhost") }
@@ -1240,7 +1241,10 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
                             patientData,
                             LocalDateTime.now().toString()
                         ) { resp -> // anonymous function is called when backend responds
-                            Log.i("CONOR", resp.toString())
+                            when (resp.err) {
+                                BErr.Ok -> uvm.saveRiskScore(resp.result)
+                                else -> {  }
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -2153,7 +2157,7 @@ fun Mainfunction(uvm: UserViewModel, Cvm: MmseViewModel) {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Home.route) { HomeScreen(uvm) }
-            composable(Screen.Settings.route) { QuestionScreen() }
+            composable(Screen.Settings.route) { QuestionScreen(uvm) }
             composable(Screen.QuestionnaireC.route) { QuestionnaireScreenC(Cvm) }
             composable(Screen.QuestionnaireSelect.route) { QuestionnaireSelect(navController) }
             composable(Screen.Notification.route) { NotificationScreen(Cvm, uvm) }
