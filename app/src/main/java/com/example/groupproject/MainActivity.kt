@@ -1238,7 +1238,7 @@ fun QuestionScreen( modifier: Modifier = Modifier) {
                         backend.send_lifestyle(
                             ctx,
                             patientData,
-                            "2025-02-12"
+                            LocalDateTime.now().toString()
                         ) { resp -> // anonymous function is called when backend responds
                             Log.i("CONOR", resp.toString())
                         }
@@ -1592,12 +1592,14 @@ fun AudioRecordingScreen(uvm: UserViewModel) {
                     onClick = {
                         backend.send_transcription(
                             cont,
-                            finalTranscript.trim()
+                            finalTranscript.trim(),
+                            LocalDateTime.now().toString()
                         ) { resp ->
                             when (resp.err) {
                                 BErr.Ok -> {
                                     Log.i("BACKEND", "Transcription submitted successfully")
                                     uvm.saveAudioResults(resp.result)
+                                    Toast.makeText( cont, resp.result, Toast.LENGTH_SHORT ).show()
                                 }
                                 BErr.Not_Signed_In -> {
                                     Log.e("BACKEND", "User not signed in")
