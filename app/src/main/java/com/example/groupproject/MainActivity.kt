@@ -124,6 +124,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import java.time.format.DateTimeFormatter
 
 
 sealed class Screen(val route: String) {
@@ -1689,20 +1690,22 @@ fun NotificationScreen(Cvm: MmseViewModel, uvm: UserViewModel) {
                     Text("No audio recordings available yet.")
                 } else {
                     Text(
-                        text = "Calculated on: ${
-                            latestAudio!!.recordedAt.format(
-                                java.time.format.DateTimeFormatter.ofPattern(
-                                    "dd MMM yyyy, HH:mm"
-                                )
-                            )
-                        }",
-                        style = MaterialTheme.typography.bodyMedium
+                        text = latestAudio!!.transcription,
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = latestAudio!!.transcription,
+                        text = "Calculated on: ${
+                            latestAudio!!.recordedAt.format(
+                                java.time.format.DateTimeFormatter.ofPattern(
+                                    "dd MMM yyyy, HH:mm"
+                                ),
+
+                                )
+                        }",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
