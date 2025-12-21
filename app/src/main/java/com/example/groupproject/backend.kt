@@ -430,7 +430,7 @@ object backend {
 
 
 
-    fun send_transcription(ctx: Context, transcript:String, cb: (Resp_test)->Unit  ){
+    fun send_transcription(ctx: Context, transcript:String, timeDate:String, cb: (Resp_test)->Unit  ){
         // if localmode
         if (localMode) {
             log("Send_transcription LOCAL MODE")
@@ -443,7 +443,7 @@ object backend {
             // state request
             val url = "$prefix/v1/send_transcript"
             val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
-            val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"data\":\"$transcript\"}")
+            val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"data\":\"$transcript\",\"DateTime\":\"$timeDate\"}")
 
             val req = object : JsonObjectRequest(
                 Method.POST, url, jsonBody,
@@ -491,7 +491,7 @@ object backend {
             // state request
             val url = "$prefix/v1/send_minimental"
             val queue = Volley.newRequestQueue(ctx) // needs to be local bc context (iirc may be per component)
-            val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"data\":\"$data\",\"timeDate\":\"$timeDate\"}")
+            val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"data\":\"$data\",\"DateTime\":\"$timeDate\"}")
 
             val req = object : JsonObjectRequest(
                 Method.POST, url, jsonBody,
@@ -632,7 +632,7 @@ object backend {
             log(str)
 
             // val jsonBody = JSONObject("{\"UserID\":\"$str\"}")
-             val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"data\":\"$str\"}")
+             val jsonBody = JSONObject("{\"UserID\":\"${backend_uid}\",\"data\":\"$str\",\"DateTime\":\"$timeDate\"}")
             log(jsonBody.toString())
 
 
