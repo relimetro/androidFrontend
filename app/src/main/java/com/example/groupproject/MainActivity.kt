@@ -444,7 +444,6 @@ class UserViewModel: ViewModel() {
     fun logout() {
         isLoggedIn = false
     }
-    @RequiresApi(Build.VERSION_CODES.O)
     fun saveRiskScore(score: String) {
         _latestRisk.value = RiskResult(
             score = score,
